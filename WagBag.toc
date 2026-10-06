@@ -3,7 +3,7 @@
 ## Notes: Minimal virtual inventory and bank for World of Warcraft
 ## Author: Sailor
 ## IconTexture: Interface\AddOns\WagBag\WagBagIcon
-## Version: 1.0.0
+## Version: 1.0.4
 ## SavedVariables: WagBagDB
 ## OptionalDeps: CanIMogIt
 

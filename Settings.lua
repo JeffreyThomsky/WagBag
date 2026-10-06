@@ -123,7 +123,12 @@ local function AnchorSelector(parent,label,y,getter,setter)
 end
 
 local function Edit(parent,w)
-    local e=CreateFrame("EditBox",nil,parent,"InputBoxTemplate"); e:SetSize(w,24); e:SetAutoFocus(false); e:SetFontObject("GameFontHighlight")
+    local e=CreateFrame("EditBox",nil,parent,"BackdropTemplate")
+    e:SetSize(w,24); e:SetAutoFocus(false); e:SetFontObject("GameFontHighlight"); e:SetTextInsets(7,7,0,0)
+    e:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+    e:SetBackdropColor(.025,.025,.03,.90); e:SetBackdropBorderColor(.20,.20,.24,1)
+    e:SetScript("OnEditFocusGained",function(x)x:SetBackdropBorderColor(.45,.45,.52,1)end)
+    e:SetScript("OnEditFocusLost",function(x)x:SetBackdropBorderColor(.20,.20,.24,1)end)
     e:SetScript("OnEscapePressed",function(x)x:ClearFocus()end); e:SetScript("OnEnterPressed",function(x)x:ClearFocus()end); return e
 end
 
@@ -182,6 +187,11 @@ function SB:CreateBagsSettings(parent)
     page.ilvlCheck=Check(page,SB:T("SHOW_ITEM_LEVEL"),function()return SB.db.items.itemLevel.enabled end,function(v)SB.db.items.itemLevel.enabled=v end); page.ilvlCheck:SetPoint("TOPLEFT",245,y); y=y-30
     page.ilvlSlider=Slider(page,SB:T("ITEM_LEVEL_SIZE"),y,8,30,1,function()return SB.db.items.itemLevel.fontSize or 12 end,function(v)SB.db.items.itemLevel.fontSize=v end); y=y-BAG_ROW_H
     page.stackSlider=Slider(page,SB:T("STACK_COUNT_SIZE"),y,8,30,1,function()return SB.db.items.stackCount.fontSize or 12 end,function(v)SB.db.items.stackCount.fontSize=v end); y=y-BAG_ROW_H
+    page.minimapCheck=Check(page,SB:T("SHOW_MINIMAP_BUTTON"),function()return WagBagDB.minimap and WagBagDB.minimap.show~=false end,function(v)
+        WagBagDB.minimap=WagBagDB.minimap or {}
+        WagBagDB.minimap.show=v and true or false
+        if SB.UpdateMinimapButtonVisibility then SB:UpdateMinimapButtonVisibility() end
+    end); page.minimapCheck:SetPoint("TOPLEFT",0,y); y=y-34
 
     page.reset=Button(page,SB:T("RESET_SETTINGS"),155); page.reset:SetPoint("TOPLEFT",0,y+8)
     page.reset:SetScript("OnClick",function()
@@ -189,6 +199,7 @@ function SB:CreateBagsSettings(parent)
         SB.db.items.recentTimerMinutes=0;SB:ClearRecentItems()
         SB.db.items.showQualityBorder=true;SB.db.items.itemLevel.enabled=true;SB.db.items.itemLevel.fontSize=12;SB.db.items.stackCount.fontSize=12
         Apply()
+        if SB.UpdateGrowthAnchorMarker then SB:UpdateGrowthAnchorMarker() end
     end)
     parent.bagsPage=page
 end
@@ -502,16 +513,14 @@ function SB:ShowProfileExportModal(text)
         f.box=CreateFrame("EditBox",nil,f.scroll)
         f.box:SetMultiLine(true);f.box:SetAutoFocus(false);f.box:SetFontObject("GameFontHighlightSmall");f.box:SetWidth(490);f.box:SetHeight(1200);f.box:SetTextInsets(2,2,2,2);f.box:SetJustifyH("LEFT");f.box:SetJustifyV("TOP")
         f.scroll:SetScrollChild(f.box)
-        f.copy=Button(f,self:T("COPY"),150);f.copy:SetPoint("BOTTOMLEFT",18,16)
-        f.cancel=Button(f,self:T("CANCEL"),150);f.cancel:SetPoint("LEFT",f.copy,"RIGHT",10,0)
-        f.copy:SetScript("OnClick",function() f.box:SetFocus();f.box:HighlightText() end)
+        f.cancel=Button(f,self:T("CANCEL"),150);f.cancel:SetPoint("BOTTOMRIGHT",-18,16)
         f.cancel:SetScript("OnClick",function() f:Hide() end)
         f.box:SetScript("OnEscapePressed",function() f:Hide() end)
         f:SetScript("OnKeyDown",function(_,key) if key=="ESCAPE" then f:Hide() end end)
         f:SetScript("OnShow",function() f.scroll:SetVerticalScroll(0);f.box:SetFocus();f.box:HighlightText() end)
         self.profileExportModal=f
     end
-    f.title:SetText(self:T("PROFILE_EXPORT_TITLE"));f.hint:SetText(self:T("PROFILE_EXPORT_HINT"));f.copy:SetText(self:T("COPY"));f.cancel:SetText(self:T("CANCEL"))
+    f.title:SetText(self:T("PROFILE_EXPORT_TITLE"));f.hint:SetText(self:T("PROFILE_EXPORT_HINT"));f.cancel:SetText(self:T("CANCEL"))
     local display=(text or ""):gsub("(.{80})","%1\n")
     f.box:SetText(display);f.box:SetCursorPosition(0);f:Show();f:Raise();f.box:SetFocus();f.box:HighlightText()
 end
@@ -660,45 +669,53 @@ end
 
 function SB:CreateSettingsFrame()
     if self.settingsFrame then return self.settingsFrame end
-    local f=CreateFrame("Frame","WagBagSettingsFrame",UIParent,"BackdropTemplate")
-    f:SetSize(PANEL_WIDTH,PANEL_HEIGHT);f:SetPoint("CENTER",UIParent,"CENTER",250,0);f:SetFrameStrata("DIALOG");f:SetClampedToScreen(true);f:SetMovable(true);f:EnableMouse(true);f:EnableKeyboard(true)
-    if f.SetPropagateKeyboardInput then f:SetPropagateKeyboardInput(false) end
-    f:SetScript("OnKeyDown",function(frame,key)
-        if key=="ESCAPE" then frame:Hide() end
-    end)
-    f:RegisterForDrag("LeftButton");f:SetScript("OnDragStart",function(x)x:StartMoving()end);f:SetScript("OnDragStop",function(x)x:StopMovingOrSizing()end)
-    Backdrop(f,{.018,.018,.024,.985},{.16,.16,.20,1})
-    Label(f,SB:T("SETTINGS_TITLE"),18,-17,"GameFontNormalLarge")
-    local close=self:CreateHeaderCloseButton(f);close:SetPoint("TOPRIGHT",-4,-5)
+    local f=CreateFrame("Frame","WagBagSettingsPanel")
+    f:SetSize(820,620)
+    f.activeTab="bags"
 
-    local nav=CreateFrame("Frame",nil,f,"BackdropTemplate");nav:SetPoint("TOPLEFT",12,-52);nav:SetPoint("BOTTOMLEFT",12,14);nav:SetWidth(NAV_WIDTH);Backdrop(nav,{.025,.025,.032,.8},{.12,.12,.15,1})
+    local nav=CreateFrame("Frame",nil,f,"BackdropTemplate")
+    nav:SetPoint("TOPLEFT",8,-8);nav:SetPoint("BOTTOMLEFT",8,8);nav:SetWidth(NAV_WIDTH)
+    Backdrop(nav,{.025,.025,.032,.55},{.12,.12,.15,1})
     f.navButtons={}
     local tabs={{"bags",SB:T("TAB_BAGS")},{"bank",SB:T("TAB_BANK")},{"currency",SB:T("TAB_CURRENCY")},{"categories",SB:T("TAB_CATEGORIES")},{"profiles",SB:T("TAB_PROFILES")}}
     local prev
-    for _,d in ipairs(tabs)do
+    for _,d in ipairs(tabs) do
         local b=Button(nav,d[2],NAV_WIDTH-12);b:SetHeight(34)
-        if prev then b:SetPoint("TOPLEFT",prev,"BOTTOMLEFT",0,-6)else b:SetPoint("TOPLEFT",6,-6)end
-        b:SetScript("OnClick",function()SB:SelectSettingsTab(d[1])end);f.navButtons[d[1]]=b;prev=b
+        if prev then b:SetPoint("TOPLEFT",prev,"BOTTOMLEFT",0,-6) else b:SetPoint("TOPLEFT",6,-6) end
+        b:SetScript("OnClick",function() SB:SelectSettingsTab(d[1]) end)
+        f.navButtons[d[1]]=b;prev=b
     end
 
     self:CreateBagsSettings(f);self:CreateCategoriesSettings(f);self:CreateCurrencySettings(f);self:CreateBankSettings(f);self:CreateProfilesSettings(f)
     f:SetScript("OnShow",function()
-        SB:SetMainFrameEscapeEnabled(false)
-        SB:SelectSettingsTab(f.activeTab or "bags");SB:RefreshSettingsValues()
+        SB:SelectSettingsTab(f.activeTab or "bags")
+        SB:RefreshSettingsValues()
         if SB.UpdateGrowthAnchorMarker then SB:UpdateGrowthAnchorMarker() end
     end)
     f:SetScript("OnHide",function()
-        if SB.growthAnchorMarker then SB.growthAnchorMarker:Hide() end
-        if SB.bankPlacementActive then SB:FinishBankPlacement()end
-        if C_Timer and C_Timer.After then C_Timer.After(0,function()SB:SetMainFrameEscapeEnabled(true)end) else SB:SetMainFrameEscapeEnabled(true) end
-    end)
-    f:Hide();self.settingsFrame=f
-    if UISpecialFrames then
-        for i=#UISpecialFrames,1,-1 do
-            if UISpecialFrames[i]=="WagBagSettingsFrame" then table.remove(UISpecialFrames,i) end
+        if f.profilesPage and f.profilesPage.transfer then
+            f.profilesPage.transfer:SetText("")
+            f.profilesPage.transfer:ClearFocus()
         end
+        if SB.growthAnchorMarker then SB.growthAnchorMarker:Hide() end
+        if SB.bankPlacementActive then SB:FinishBankPlacement() end
+    end)
+
+    self.settingsFrame=f
+    if Settings and Settings.RegisterCanvasLayoutCategory then
+        local category=Settings.RegisterCanvasLayoutCategory(f,"WagBag")
+        Settings.RegisterAddOnCategory(category)
+        self.settingsCategory=category
+        self.settingsCategoryID=category.GetID and category:GetID() or category.ID or "WagBag"
     end
     return f
+end
+
+function SB:OpenSettings()
+    self:CreateSettingsFrame()
+    if Settings and Settings.OpenToCategory then
+        Settings.OpenToCategory(self.settingsCategoryID or "WagBag")
+    end
 end
 
 function SB:RefreshSettingsValues()
@@ -708,9 +725,10 @@ function SB:RefreshSettingsValues()
     p.sortButton:SetText(p.sortNames[self.db.items.sortMode or "default"]or SB:T("SORT_TYPE"))
     p.anchorSelector:Sync()
     p.qualityCheck:SetChecked(self.db.items.showQualityBorder and true or false);p.ilvlCheck:SetChecked(self.db.items.itemLevel.enabled and true or false)
+    if p.minimapCheck then p.minimapCheck:SetChecked(WagBagDB.minimap and WagBagDB.minimap.show~=false) end
     self:RefreshBankSettingsValues()
 end
 
 function SB:ToggleSettings()
-    local f=self.settingsFrame or self:CreateSettingsFrame();f:SetShown(not f:IsShown())
+    self:OpenSettings()
 end

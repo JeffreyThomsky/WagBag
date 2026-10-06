@@ -108,6 +108,9 @@ function SB:InitializeDatabase()
 
     WagBagDB.profiles=WagBagDB.profiles or {}
     WagBagDB.profileKeys=WagBagDB.profileKeys or {}
+    WagBagDB.minimap=WagBagDB.minimap or {}
+    if WagBagDB.minimap.show==nil then WagBagDB.minimap.show=true end
+    if WagBagDB.minimap.angle==nil then WagBagDB.minimap.angle=225 end
     for _,profile in pairs(WagBagDB.profiles) do
         if type(profile)=="table" then PrepareProfile(profile) end
     end
@@ -174,6 +177,8 @@ function SB:ApplyActiveProfile()
         end
     end
     if self.RefreshSettingsValues then self:RefreshSettingsValues() end
+    if self.UpdateGrowthAnchorMarker then self:UpdateGrowthAnchorMarker() end
+    if self.UpdateMinimapButtonVisibility then self:UpdateMinimapButtonVisibility() end
 end
 
 function SB:SelectProfile(profileKey)

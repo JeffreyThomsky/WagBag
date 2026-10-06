@@ -727,25 +727,10 @@ function SB:CreateMainFrame()
     lockButton:SetScript("OnLeave", GameTooltip_Hide)
     self.lockButton = lockButton
 
-    local settingsButton = CreateFrame("Button", nil, frame)
-    settingsButton:SetSize(20, 20)
-    settingsButton:SetPoint("RIGHT", lockButton, "LEFT", -2, 0)
-    local settingsIcon = settingsButton:CreateTexture(nil, "ARTWORK")
-    settingsIcon:SetAllPoints()
-    settingsIcon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    settingsIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    settingsButton:SetScript("OnClick", function() self:ToggleSettings() end)
-    settingsButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(self:T("SETTINGS"))
-        GameTooltip:Show()
-    end)
-    settingsButton:SetScript("OnLeave", GameTooltip_Hide)
-    self.settingsButton = settingsButton
 
     local bagButton = CreateFrame("Button", nil, frame)
     bagButton:SetSize(20, 20)
-    bagButton:SetPoint("RIGHT", settingsButton, "LEFT", -1, 0)
+    bagButton:SetPoint("RIGHT", lockButton, "LEFT", -3, 0)
     local bagIcon = bagButton:CreateTexture(nil, "ARTWORK")
     bagIcon:SetAllPoints()
     bagIcon:SetTexture("Interface\\Buttons\\Button-Backpack-Up")
@@ -820,8 +805,7 @@ function SB:CreateMainFrame()
 
     closeButton:ClearAllPoints(); closeButton:SetPoint("TOPRIGHT",frame,"TOPRIGHT",-3,-7)
     lockButton:ClearAllPoints(); lockButton:SetPoint("RIGHT",closeButton,"LEFT",-2,0)
-    settingsButton:ClearAllPoints(); settingsButton:SetPoint("RIGHT",lockButton,"LEFT",-3,0)
-    bagButton:ClearAllPoints(); bagButton:SetPoint("RIGHT",settingsButton,"LEFT",-3,0)
+    bagButton:ClearAllPoints(); bagButton:SetPoint("RIGHT",lockButton,"LEFT",-3,0)
     modeButton:SetPoint("RIGHT",bagButton,"LEFT",-3,0)
     broomButton:ClearAllPoints(); broomButton:SetPoint("RIGHT",modeButton,"LEFT",-3,0)
 
@@ -1078,4 +1062,53 @@ function SB:ToggleBags()
     self:BeginBagSession()
     self:RefreshBags()
     self.mainFrame:Show()
+end
+
+function SB:UpdateMinimapButtonPosition()
+    local b=self.minimapButton
+    if not b or not Minimap then return end
+    local angle=((WagBagDB and WagBagDB.minimap and WagBagDB.minimap.angle) or 225)*math.pi/180
+    local radius=80
+    b:ClearAllPoints()
+    b:SetPoint("CENTER",Minimap,"CENTER",math.cos(angle)*radius,math.sin(angle)*radius)
+end
+
+function SB:UpdateMinimapButtonVisibility()
+    if not self.minimapButton then return end
+    self.minimapButton:SetShown(not WagBagDB or not WagBagDB.minimap or WagBagDB.minimap.show~=false)
+end
+
+function SB:CreateMinimapButton()
+    if self.minimapButton or not Minimap then return self.minimapButton end
+    local b=CreateFrame("Button","LibDBIcon10_WagBag",Minimap)
+    b:SetSize(31,31);b:SetFrameStrata("MEDIUM");b:SetFrameLevel(8);b:RegisterForClicks("LeftButtonUp");b:RegisterForDrag("LeftButton")
+    b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    local background=b:CreateTexture(nil,"BACKGROUND")
+    background:SetSize(20,20);background:SetPoint("TOPLEFT",7,-5);background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+
+    local icon=b:CreateTexture(nil,"ARTWORK")
+    icon:SetSize(20,20);icon:SetPoint("TOPLEFT",7,-5);icon:SetTexture("Interface\\AddOns\\WagBag\\WagBagIcon");icon:SetTexCoord(.08,.92,.08,.92)
+    if icon.AddMaskTexture then
+        local mask=b:CreateMaskTexture()
+        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask","CLAMPTOBLACKADDITIVE","CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(icon)
+        icon:AddMaskTexture(mask)
+    end
+
+    local border=b:CreateTexture(nil,"OVERLAY")
+    border:SetSize(53,53);border:SetPoint("TOPLEFT");border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+
+    b:SetScript("OnClick",function() if not b._dragged then SB:OpenSettings() end;b._dragged=nil end)
+    b:SetScript("OnEnter",function(x) GameTooltip:SetOwner(x,"ANCHOR_LEFT");GameTooltip:SetText("WagBag");GameTooltip:AddLine(SB:T("SETTINGS"),1,1,1);GameTooltip:Show() end)
+    b:SetScript("OnLeave",GameTooltip_Hide)
+    b:SetScript("OnDragStart",function(x) x._dragged=true;x:SetScript("OnUpdate",function()
+        local mx,my=Minimap:GetCenter();local cx,cy=GetCursorPosition();local scale=Minimap:GetEffectiveScale();cx,cy=cx/scale,cy/scale
+        local angle=math.deg(math.atan2(cy-my,cx-mx))
+        WagBagDB.minimap=WagBagDB.minimap or {};WagBagDB.minimap.angle=angle;SB:UpdateMinimapButtonPosition()
+    end) end)
+    b:SetScript("OnDragStop",function(x) x:SetScript("OnUpdate",nil) end)
+    self.minimapButton=b
+    self:UpdateMinimapButtonPosition();self:UpdateMinimapButtonVisibility()
+    return b
 end

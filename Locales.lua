@@ -25,6 +25,7 @@ local RU = {
     ITEMS="ПРЕДМЕТЫ", ITEM_SORT="Сортировка предметов", SORT_TYPE="По типу", SORT_NAME="По названию",
     SORT_QUALITY="По качеству", SORT_ITEM_LEVEL="По item level", QUALITY_BORDER="Цветная рамка качества",
     SHOW_ITEM_LEVEL="Показывать item level", ITEM_LEVEL_SIZE="Размер item level", STACK_COUNT_SIZE="Размер количества в стаке", RESET_SETTINGS="Сбросить настройки",
+    SHOW_MINIMAP_BUTTON="Показывать кнопку у миникарты",
 
     CUSTOM_CATEGORIES="КАТЕГОРИИ", ADD="Добавить", RENAME="Переименовать", DELETE="Удалить", HIDE="Скрыть", UNHIDE="Не скрывать", HIDDEN_MARK="скрыта",
     CATEGORY_CONTENTS="СОДЕРЖИМОЕ КАТЕГОРИИ", ASSIGN_ITEM="НАЗНАЧИТЬ ПРЕДМЕТ",
@@ -34,7 +35,7 @@ local RU = {
     CHARACTER_CURRENCY="ВАЛЮТА ПЕРСОНАЖА", CURRENCY_DESC="Отмеченная валюта отображается в настраиваемой строке WagBag.",
     BANK_WINDOW="ОКНО БАНКА", BANK_POSITION="Расположение банка", BANK_SCALE="Масштаб банка",
     CELLS_PER_ROW="Ячеек в строке", WINDOW_ALPHA="Прозрачность окна", BANK_ANCHOR="Якорь банка",
-    LOCK_POSITION="Зафиксировать положение", SETTINGS_TITLE="WagBag — Настройки",
+    LOCK_POSITION="Зафиксировать положение",
     TAB_BAGS="Сумки", TAB_BANK="Банк", TAB_CURRENCY="Валюта", TAB_CATEGORIES="Категории",
 
     NO_FREE_BAG_SLOT="Нет свободной ячейки в обычных сумках.",
@@ -70,7 +71,7 @@ local RU = {
     PROFILE_DELETED="Профиль %s удалён.",
     PROFILE_IMPORTED="Профиль импортирован.",
     PROFILE_IMPORT_ERROR="Не удалось импортировать строку профиля.",
-    COPY="Копировать", CANCEL="Отмена",
+    CANCEL="Отмена",
     PROFILE_EXPORT_TITLE="ЭКСПОРТ ПРОФИЛЯ", PROFILE_EXPORT_HINT="Строка уже выделена. Нажмите Ctrl + C, чтобы скопировать, или Esc для закрытия.",
 }
 local EN = {
@@ -99,6 +100,7 @@ local EN = {
     ITEMS="ITEMS", ITEM_SORT="Item sorting", SORT_TYPE="By type", SORT_NAME="By name",
     SORT_QUALITY="By quality", SORT_ITEM_LEVEL="By item level", QUALITY_BORDER="Item quality border",
     SHOW_ITEM_LEVEL="Show item level", ITEM_LEVEL_SIZE="Item level font size", STACK_COUNT_SIZE="Stack count font size", RESET_SETTINGS="Reset settings",
+    SHOW_MINIMAP_BUTTON="Show minimap button",
 
     CUSTOM_CATEGORIES="CATEGORIES", ADD="Add", RENAME="Rename", DELETE="Delete", HIDE="Hide", UNHIDE="Unhide", HIDDEN_MARK="hidden",
     CATEGORY_CONTENTS="CATEGORY CONTENTS", ASSIGN_ITEM="ASSIGN ITEM",
@@ -108,7 +110,7 @@ local EN = {
     CHARACTER_CURRENCY="CHARACTER CURRENCY", CURRENCY_DESC="Selected currencies are shown in WagBag's configurable currency row.",
     BANK_WINDOW="BANK WINDOW", BANK_POSITION="Bank position", BANK_SCALE="Bank scale",
     CELLS_PER_ROW="Cells per row", WINDOW_ALPHA="Window opacity", BANK_ANCHOR="Bank anchor",
-    LOCK_POSITION="Lock position", SETTINGS_TITLE="WagBag — Settings",
+    LOCK_POSITION="Lock position",
     TAB_BAGS="Bags", TAB_BANK="Bank", TAB_CURRENCY="Currency", TAB_CATEGORIES="Categories",
 
     NO_FREE_BAG_SLOT="No free slot in regular bags.",
@@ -144,7 +146,7 @@ local EN = {
     PROFILE_DELETED="Profile %s deleted.",
     PROFILE_IMPORTED="Profile imported.",
     PROFILE_IMPORT_ERROR="Could not import the profile string.",
-    COPY="Copy", CANCEL="Cancel",
+    CANCEL="Cancel",
     PROFILE_EXPORT_TITLE="PROFILE EXPORT", PROFILE_EXPORT_HINT="The string is already selected. Press Ctrl + C to copy it, or Esc to close.",
 }
 local DE = {
@@ -169,12 +171,13 @@ local DE = {
     ITEMS="GEGENSTÄNDE", ITEM_SORT="Gegenstände sortieren", SORT_TYPE="Nach Typ", SORT_NAME="Nach Name",
     SORT_QUALITY="Nach Qualität", SORT_ITEM_LEVEL="Nach Gegenstandsstufe", QUALITY_BORDER="Rahmen nach Qualität",
     SHOW_ITEM_LEVEL="Gegenstandsstufe anzeigen", ITEM_LEVEL_SIZE="Schriftgröße der Gegenstandsstufe", STACK_COUNT_SIZE="Schriftgröße der Stapelanzahl", RESET_SETTINGS="Einstellungen zurücksetzen",
+    SHOW_MINIMAP_BUTTON="Minikarten-Schaltfläche anzeigen",
     CUSTOM_CATEGORIES="BENUTZERDEFINIERTE KATEGORIEN", ADD="Hinzufügen", RENAME="Umbenennen", DELETE="Löschen",
     CATEGORY_CONTENTS="KATEGORIEINHALT", ASSIGN_ITEM="GEGENSTAND ZUWEISEN", ITEM_ID_HINT="ID oder Umschalt + Linksklick auf Gegenstand",
     ASSIGN="Zuweisen", REMOVE="Entfernen", NEW_CATEGORY="Neue Kategorie", SELECT_CUSTOM_CATEGORY="Wähle zuerst eine benutzerdefinierte Kategorie.", INVALID_ITEM_ID="Gib eine gültige Gegenstands-ID ein.",
     CHARACTER_CURRENCY="CHARAKTERWÄHRUNGEN", CURRENCY_DESC="Ausgewählte Währungen werden in der konfigurierbaren Währungszeile von WagBag angezeigt.",
     BANK_WINDOW="BANKFENSTER", BANK_POSITION="Bankposition", BANK_SCALE="Bankskalierung", CELLS_PER_ROW="Fächer pro Reihe",
-    WINDOW_ALPHA="Fenstertransparenz", BANK_ANCHOR="Bankanker", LOCK_POSITION="Position sperren", SETTINGS_TITLE="WagBag — Einstellungen",
+    WINDOW_ALPHA="Fenstertransparenz", BANK_ANCHOR="Bankanker", LOCK_POSITION="Position sperren",
     TAB_BAGS="Taschen", TAB_BANK="Bank", TAB_CURRENCY="Währungen", TAB_CATEGORIES="Kategorien",
     NO_FREE_BAG_SLOT="Kein freier Platz in den normalen Taschen.",
     LOCALE_STATUS="Client-Sprache: %s | WagBag-Sprache: %s%s", LOCALE_OVERRIDE=" (Override)", LOCALE_AUTO="Automatische WagBag-Sprache: %s.", LOCALE_SET="WagBag-Testsprache: %s.",
@@ -210,7 +213,7 @@ local DE = {
     PROFILE_DELETED="Profil %s gelöscht.",
     PROFILE_IMPORTED="Profil importiert.",
     PROFILE_IMPORT_ERROR="Profilzeichenfolge konnte nicht importiert werden.",
-    COPY="Kopieren", CANCEL="Abbrechen",
+    CANCEL="Abbrechen",
     PROFILE_EXPORT_TITLE="PROFIL EXPORTIEREN", PROFILE_EXPORT_HINT="Die Zeichenfolge ist bereits markiert. Drücke Strg + C zum Kopieren oder Esc zum Schließen.",
 }
 local FR = {
@@ -232,12 +235,13 @@ local FR = {
     BACKGROUND_ALPHA="Opacité de l’arrière-plan", GROWTH_ANCHOR="Ancrage d’agrandissement", ITEMS="OBJETS", ITEM_SORT="Tri des objets",
     SORT_TYPE="Par type", SORT_NAME="Par nom", SORT_QUALITY="Par qualité", SORT_ITEM_LEVEL="Par niveau d’objet", QUALITY_BORDER="Bordure selon la qualité",
     SHOW_ITEM_LEVEL="Afficher le niveau d’objet", ITEM_LEVEL_SIZE="Taille du niveau d’objet", STACK_COUNT_SIZE="Taille du nombre de piles", RESET_SETTINGS="Réinitialiser les paramètres",
+    SHOW_MINIMAP_BUTTON="Afficher le bouton de la minicarte",
     CUSTOM_CATEGORIES="CATÉGORIES PERSONNALISÉES", ADD="Ajouter", RENAME="Renommer", DELETE="Supprimer", CATEGORY_CONTENTS="CONTENU DE LA CATÉGORIE",
     ASSIGN_ITEM="ASSIGNER UN OBJET", ITEM_ID_HINT="ID ou Maj + clic gauche sur un objet", ASSIGN="Assigner", REMOVE="Retirer", NEW_CATEGORY="Nouvelle catégorie",
     SELECT_CUSTOM_CATEGORY="Sélectionnez d’abord une catégorie personnalisée.", INVALID_ITEM_ID="Saisissez un ID d’objet valide.",
     CHARACTER_CURRENCY="MONNAIES DU PERSONNAGE", CURRENCY_DESC="Les monnaies cochées apparaissent dans la ligne de monnaies configurable de WagBag.",
     BANK_WINDOW="FENÊTRE DE BANQUE", BANK_POSITION="Position de la banque", BANK_SCALE="Échelle de la banque", CELLS_PER_ROW="Cases par ligne",
-    WINDOW_ALPHA="Opacité de la fenêtre", BANK_ANCHOR="Ancrage de la banque", LOCK_POSITION="Verrouiller la position", SETTINGS_TITLE="WagBag — Paramètres",
+    WINDOW_ALPHA="Opacité de la fenêtre", BANK_ANCHOR="Ancrage de la banque", LOCK_POSITION="Verrouiller la position",
     TAB_BAGS="Sacs", TAB_BANK="Banque", TAB_CURRENCY="Monnaies", TAB_CATEGORIES="Catégories", NO_FREE_BAG_SLOT="Aucune place libre dans les sacs normaux.",
     LOCALE_STATUS="Langue du client : %s | langue WagBag : %s%s", LOCALE_OVERRIDE=" (forcée)", LOCALE_AUTO="Langue automatique de WagBag : %s.", LOCALE_SET="Langue de test de WagBag : %s.",
     LOCALE_UNKNOWN="La langue %s n’est pas prise en charge. Disponibles : ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Commandes :", CMD_TOGGLE="/wb - ouvrir/fermer WagBag", CMD_SCAN="/wb scan - analyser les sacs actuels",
@@ -272,7 +276,7 @@ local FR = {
     PROFILE_DELETED="Profil %s supprimé.",
     PROFILE_IMPORTED="Profil importé.",
     PROFILE_IMPORT_ERROR="Impossible d’importer la chaîne du profil.",
-    COPY="Copier", CANCEL="Annuler",
+    CANCEL="Annuler",
     PROFILE_EXPORT_TITLE="EXPORT DU PROFIL", PROFILE_EXPORT_HINT="La chaîne est déjà sélectionnée. Appuyez sur Ctrl + C pour la copier ou sur Échap pour fermer.",
 }
 local ES = {
@@ -294,12 +298,13 @@ local ES = {
     BACKGROUND_ALPHA="Opacidad del fondo", GROWTH_ANCHOR="Anclaje de crecimiento", ITEMS="OBJETOS", ITEM_SORT="Orden de objetos",
     SORT_TYPE="Por tipo", SORT_NAME="Por nombre", SORT_QUALITY="Por calidad", SORT_ITEM_LEVEL="Por nivel de objeto", QUALITY_BORDER="Borde según calidad",
     SHOW_ITEM_LEVEL="Mostrar nivel de objeto", ITEM_LEVEL_SIZE="Tamaño del nivel de objeto", STACK_COUNT_SIZE="Tamaño de cantidad del montón", RESET_SETTINGS="Restablecer ajustes",
+    SHOW_MINIMAP_BUTTON="Mostrar botón del minimapa",
     CUSTOM_CATEGORIES="CATEGORÍAS PERSONALIZADAS", ADD="Añadir", RENAME="Renombrar", DELETE="Eliminar", CATEGORY_CONTENTS="CONTENIDO DE LA CATEGORÍA",
     ASSIGN_ITEM="ASIGNAR OBJETO", ITEM_ID_HINT="ID o Mayús + clic izq. en un objeto", ASSIGN="Asignar", REMOVE="Quitar", NEW_CATEGORY="Nueva categoría",
     SELECT_CUSTOM_CATEGORY="Primero selecciona una categoría personalizada.", INVALID_ITEM_ID="Introduce un ID de objeto válido.",
     CHARACTER_CURRENCY="MONEDAS DEL PERSONAJE", CURRENCY_DESC="Las monedas seleccionadas aparecen en la fila de monedas configurable de WagBag.",
     BANK_WINDOW="VENTANA DEL BANCO", BANK_POSITION="Posición del banco", BANK_SCALE="Escala del banco", CELLS_PER_ROW="Casillas por fila",
-    WINDOW_ALPHA="Opacidad de la ventana", BANK_ANCHOR="Anclaje del banco", LOCK_POSITION="Bloquear posición", SETTINGS_TITLE="WagBag — Ajustes",
+    WINDOW_ALPHA="Opacidad de la ventana", BANK_ANCHOR="Anclaje del banco", LOCK_POSITION="Bloquear posición",
     TAB_BAGS="Bolsas", TAB_BANK="Banco", TAB_CURRENCY="Monedas", TAB_CATEGORIES="Categorías", NO_FREE_BAG_SLOT="No hay espacio libre en las bolsas normales.",
     LOCALE_STATUS="Idioma del cliente: %s | idioma de WagBag: %s%s", LOCALE_OVERRIDE=" (forzado)", LOCALE_AUTO="Idioma automático de WagBag: %s.", LOCALE_SET="Idioma de prueba de WagBag: %s.",
     LOCALE_UNKNOWN="El idioma %s no es compatible. Disponibles: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/cerrar WagBag", CMD_SCAN="/wb scan - analizar las bolsas actuales",
@@ -334,7 +339,7 @@ local ES = {
     PROFILE_DELETED="Perfil %s eliminado.",
     PROFILE_IMPORTED="Perfil importado.",
     PROFILE_IMPORT_ERROR="No se pudo importar la cadena de perfil.",
-    COPY="Copiar", CANCEL="Cancelar",
+    CANCEL="Cancelar",
     PROFILE_EXPORT_TITLE="EXPORTAR PERFIL", PROFILE_EXPORT_HINT="La cadena ya está seleccionada. Pulsa Ctrl + C para copiarla o Esc para cerrar.",
 }
 local IT = {
@@ -356,12 +361,13 @@ local IT = {
     BACKGROUND_ALPHA="Opacità sfondo", GROWTH_ANCHOR="Ancoraggio di espansione", ITEMS="OGGETTI", ITEM_SORT="Ordinamento oggetti",
     SORT_TYPE="Per tipo", SORT_NAME="Per nome", SORT_QUALITY="Per qualità", SORT_ITEM_LEVEL="Per livello oggetto", QUALITY_BORDER="Bordo qualità",
     SHOW_ITEM_LEVEL="Mostra livello oggetto", ITEM_LEVEL_SIZE="Dimensione livello oggetto", STACK_COUNT_SIZE="Dimensione quantità pila", RESET_SETTINGS="Ripristina impostazioni",
+    SHOW_MINIMAP_BUTTON="Mostra pulsante minimappa",
     CUSTOM_CATEGORIES="CATEGORIE PERSONALIZZATE", ADD="Aggiungi", RENAME="Rinomina", DELETE="Elimina", CATEGORY_CONTENTS="CONTENUTO CATEGORIA",
     ASSIGN_ITEM="ASSEGNA OGGETTO", ITEM_ID_HINT="ID o Maiusc + clic sinistro sull'oggetto", ASSIGN="Assegna", REMOVE="Rimuovi", NEW_CATEGORY="Nuova categoria",
     SELECT_CUSTOM_CATEGORY="Seleziona prima una categoria personalizzata.", INVALID_ITEM_ID="Inserisci un ID oggetto valido.",
     CHARACTER_CURRENCY="VALUTE DEL PERSONAGGIO", CURRENCY_DESC="Le valute selezionate appaiono nella riga configurabile delle valute di WagBag.",
     BANK_WINDOW="FINESTRA BANCA", BANK_POSITION="Posizione banca", BANK_SCALE="Scala banca", CELLS_PER_ROW="Celle per riga",
-    WINDOW_ALPHA="Opacità finestra", BANK_ANCHOR="Ancoraggio banca", LOCK_POSITION="Blocca posizione", SETTINGS_TITLE="WagBag — Impostazioni",
+    WINDOW_ALPHA="Opacità finestra", BANK_ANCHOR="Ancoraggio banca", LOCK_POSITION="Blocca posizione",
     TAB_BAGS="Borse", TAB_BANK="Banca", TAB_CURRENCY="Valute", TAB_CATEGORIES="Categorie", NO_FREE_BAG_SLOT="Nessuno spazio libero nelle borse normali.",
     LOCALE_STATUS="Lingua client: %s | lingua WagBag: %s%s", LOCALE_OVERRIDE=" (override)", LOCALE_AUTO="Lingua automatica WagBag: %s.", LOCALE_SET="Lingua di test WagBag: %s.",
     LOCALE_UNKNOWN="La lingua %s non è supportata. Disponibili: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandi:", CMD_TOGGLE="/wb - apri/chiudi WagBag", CMD_SCAN="/wb scan - analizza le borse attuali",
@@ -396,7 +402,7 @@ local IT = {
     PROFILE_DELETED="Profilo %s eliminato.",
     PROFILE_IMPORTED="Profilo importato.",
     PROFILE_IMPORT_ERROR="Impossibile importare la stringa del profilo.",
-    COPY="Copia", CANCEL="Annulla",
+    CANCEL="Annulla",
     PROFILE_EXPORT_TITLE="ESPORTA PROFILO", PROFILE_EXPORT_HINT="La stringa è già selezionata. Premi Ctrl + C per copiarla oppure Esc per chiudere.",
 }
 local PT = {
@@ -418,12 +424,13 @@ local PT = {
     BACKGROUND_ALPHA="Opacidade do fundo", GROWTH_ANCHOR="Âncora de expansão", ITEMS="ITENS", ITEM_SORT="Ordenação dos itens",
     SORT_TYPE="Por tipo", SORT_NAME="Por nome", SORT_QUALITY="Por qualidade", SORT_ITEM_LEVEL="Por nível do item", QUALITY_BORDER="Borda por qualidade",
     SHOW_ITEM_LEVEL="Mostrar nível do item", ITEM_LEVEL_SIZE="Tamanho do nível do item", STACK_COUNT_SIZE="Tamanho da quantidade da pilha", RESET_SETTINGS="Redefinir configurações",
+    SHOW_MINIMAP_BUTTON="Mostrar botão no minimapa",
     CUSTOM_CATEGORIES="CATEGORIAS PERSONALIZADAS", ADD="Adicionar", RENAME="Renomear", DELETE="Excluir", CATEGORY_CONTENTS="CONTEÚDO DA CATEGORIA",
     ASSIGN_ITEM="ATRIBUIR ITEM", ITEM_ID_HINT="ID ou Shift + clique esquerdo no item", ASSIGN="Atribuir", REMOVE="Remover", NEW_CATEGORY="Nova categoria",
     SELECT_CUSTOM_CATEGORY="Selecione primeiro uma categoria personalizada.", INVALID_ITEM_ID="Insira um ID de item válido.",
     CHARACTER_CURRENCY="MOEDAS DO PERSONAGEM", CURRENCY_DESC="As moedas selecionadas aparecem na linha configurável de moedas do WagBag.",
     BANK_WINDOW="JANELA DO BANCO", BANK_POSITION="Posição do banco", BANK_SCALE="Escala do banco", CELLS_PER_ROW="Células por linha",
-    WINDOW_ALPHA="Opacidade da janela", BANK_ANCHOR="Âncora do banco", LOCK_POSITION="Bloquear posição", SETTINGS_TITLE="WagBag — Configurações",
+    WINDOW_ALPHA="Opacidade da janela", BANK_ANCHOR="Âncora do banco", LOCK_POSITION="Bloquear posição",
     TAB_BAGS="Bolsas", TAB_BANK="Banco", TAB_CURRENCY="Moedas", TAB_CATEGORIES="Categorias", NO_FREE_BAG_SLOT="Não há espaço livre nas bolsas normais.",
     LOCALE_STATUS="Idioma do cliente: %s | idioma do WagBag: %s%s", LOCALE_OVERRIDE=" (override)", LOCALE_AUTO="Idioma automático do WagBag: %s.", LOCALE_SET="Idioma de teste do WagBag: %s.",
     LOCALE_UNKNOWN="O idioma %s não é compatível. Disponíveis: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/fechar WagBag", CMD_SCAN="/wb scan - verificar bolsas atuais",
@@ -458,7 +465,7 @@ local PT = {
     PROFILE_DELETED="Perfil %s excluído.",
     PROFILE_IMPORTED="Perfil importado.",
     PROFILE_IMPORT_ERROR="Não foi possível importar a string do perfil.",
-    COPY="Copiar", CANCEL="Cancelar",
+    CANCEL="Cancelar",
     PROFILE_EXPORT_TITLE="EXPORTAR PERFIL", PROFILE_EXPORT_HINT="A string já está selecionada. Pressione Ctrl + C para copiar ou Esc para fechar.",
 }
 local KO = {
@@ -518,6 +525,7 @@ local KO = {
     ITEM_LEVEL_SIZE="아이템 레벨 글꼴 크기",
     STACK_COUNT_SIZE="묶음 수량 글꼴 크기",
     RESET_SETTINGS="설정 초기화",
+    SHOW_MINIMAP_BUTTON="미니맵 버튼 표시",
     CUSTOM_CATEGORIES="사용자 분류",
     ADD="추가",
     RENAME="이름 변경",
@@ -539,7 +547,6 @@ local KO = {
     WINDOW_ALPHA="창 투명도",
     BANK_ANCHOR="은행 기준점",
     LOCK_POSITION="위치 고정",
-    SETTINGS_TITLE="WagBag — 설정",
     TAB_BAGS="가방",
     TAB_BANK="은행",
     TAB_CURRENCY="화폐",
@@ -587,7 +594,7 @@ local KO = {
     PROFILE_DELETED="프로필 %s이(가) 삭제되었습니다.",
     PROFILE_IMPORTED="프로필을 가져왔습니다.",
     PROFILE_IMPORT_ERROR="프로필 문자열을 가져올 수 없습니다.",
-    COPY="복사", CANCEL="취소",
+    CANCEL="취소",
     PROFILE_EXPORT_TITLE="프로필 내보내기", PROFILE_EXPORT_HINT="문자열이 이미 선택되어 있습니다. Ctrl + C로 복사하거나 Esc로 닫으세요.",
 }
 local ZHCN = {
@@ -647,6 +654,7 @@ local ZHCN = {
     ITEM_LEVEL_SIZE="物品等级字号",
     STACK_COUNT_SIZE="堆叠数量字号",
     RESET_SETTINGS="重置设置",
+    SHOW_MINIMAP_BUTTON="显示小地图按钮",
     CUSTOM_CATEGORIES="自定义分类",
     ADD="添加",
     RENAME="重命名",
@@ -668,7 +676,6 @@ local ZHCN = {
     WINDOW_ALPHA="窗口透明度",
     BANK_ANCHOR="银行锚点",
     LOCK_POSITION="锁定位置",
-    SETTINGS_TITLE="WagBag — 设置",
     TAB_BAGS="背包",
     TAB_BANK="银行",
     TAB_CURRENCY="货币",
@@ -716,7 +723,7 @@ local ZHCN = {
     PROFILE_DELETED="配置 %s 已删除。",
     PROFILE_IMPORTED="配置已导入。",
     PROFILE_IMPORT_ERROR="无法导入配置字符串。",
-    COPY="复制", CANCEL="取消",
+    CANCEL="取消",
     PROFILE_EXPORT_TITLE="导出配置", PROFILE_EXPORT_HINT="字符串已自动选中。按 Ctrl + C 复制，或按 Esc 关闭。",
 }
 local ZHTW = {
@@ -776,6 +783,7 @@ local ZHTW = {
     ITEM_LEVEL_SIZE="物品等級字體大小",
     STACK_COUNT_SIZE="堆疊數量字體大小",
     RESET_SETTINGS="重設設定",
+    SHOW_MINIMAP_BUTTON="顯示小地圖按鈕",
     CUSTOM_CATEGORIES="自訂分類",
     ADD="新增",
     RENAME="重新命名",
@@ -797,7 +805,6 @@ local ZHTW = {
     WINDOW_ALPHA="視窗透明度",
     BANK_ANCHOR="銀行錨點",
     LOCK_POSITION="鎖定位置",
-    SETTINGS_TITLE="WagBag — 設定",
     TAB_BAGS="背包",
     TAB_BANK="銀行",
     TAB_CURRENCY="貨幣",
@@ -845,7 +852,7 @@ local ZHTW = {
     PROFILE_DELETED="設定檔 %s 已刪除。",
     PROFILE_IMPORTED="設定檔已匯入。",
     PROFILE_IMPORT_ERROR="無法匯入設定檔字串。",
-    COPY="複製", CANCEL="取消",
+    CANCEL="取消",
     PROFILE_EXPORT_TITLE="匯出設定檔", PROFILE_EXPORT_HINT="字串已自動選取。按 Ctrl + C 複製，或按 Esc 關閉。",
 }
 

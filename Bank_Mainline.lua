@@ -79,13 +79,25 @@ local function SelectBlizzardBank(bankType, selectedTabID)
     local realType = bankType == MATERIALS and CHARACTER or bankType
     local tabs = realType == ACCOUNT and ACCOUNT_TABS or CHARACTER_TABS
     local selected = selectedTabID or tabs[1]
+    local bankFrame = _G.BankFrame
     local panel = _G.BankPanel
-    if panel and selected then
-        panel.selectedTabID = selected
-        panel.bankType = realType
-        if not panel:IsShown() then panel:Show() end
-        if SB and SB.SuppressNativeBank then SB:SuppressNativeBank() end
+
+    if bankFrame and bankFrame.SetTab then
+        local tabButtonID = realType == ACCOUNT and bankFrame.accountBankTabID or bankFrame.characterBankTabID
+        if tabButtonID then pcall(bankFrame.SetTab, bankFrame, tabButtonID) end
+    elseif panel and panel.SetBankType then
+        pcall(panel.SetBankType, panel, realType)
     end
+
+    if panel and selected then
+        if panel.SetSelectedTabID then
+            pcall(panel.SetSelectedTabID, panel, selected)
+        else
+            panel.selectedTabID = selected
+        end
+        if not panel:IsShown() then panel:Show() end
+    end
+    if SB and SB.SuppressNativeBank then SB:SuppressNativeBank() end
     return selected
 end
 
@@ -180,6 +192,16 @@ function SB:CreateBankFrame()
 
     local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
     title:SetPoint("TOPLEFT",12,-12); title:SetText("WagBag")
+
+    local searchBox=CreateFrame("EditBox",nil,f,"BackdropTemplate")
+    searchBox:SetSize(132,20); searchBox:SetPoint("LEFT",title,"RIGHT",8,0); searchBox:SetAutoFocus(false); searchBox:SetFontObject("GameFontHighlight"); searchBox:SetTextInsets(6,18,0,0); searchBox:EnableMouse(true); searchBox:SetFrameLevel(f:GetFrameLevel()+4)
+    searchBox:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1}); searchBox:SetBackdropColor(.035,.035,.045,.96); searchBox:SetBackdropBorderColor(.16,.16,.20,1)
+    local placeholder=searchBox:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); placeholder:SetPoint("LEFT",6,0); placeholder:SetText(self:T("SEARCH"))
+    local clear=CreateFrame("Button",nil,searchBox); clear:SetSize(14,14); clear:SetPoint("RIGHT",-2,0); clear:SetFrameLevel(searchBox:GetFrameLevel()+1)
+    local clearText=clear:CreateFontString(nil,"OVERLAY","GameFontNormal"); clearText:SetPoint("CENTER"); clearText:SetText("×"); clear:Hide()
+    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); SB.bankSearchText=text; if f:IsShown() then SB:RefreshBank() end end)
+    searchBox:SetScript("OnEscapePressed",function(box) box:ClearFocus() end); searchBox:SetScript("OnEnterPressed",function(box) box:ClearFocus() end)
+    clear:SetScript("OnClick",function() searchBox:SetText(""); searchBox:ClearFocus() end); f.searchBox=searchBox
 
     local char=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
     char:SetSize(82,22); char:SetFrameLevel(contentLevel) char:SetPoint("TOPLEFT",12,-36); char:SetText(self:T("BANK"))
@@ -420,7 +442,10 @@ function SB:RefreshBank()
                 if overlay then overlay:Hide() end
                 if w.nativeButton then w.nativeButton:UnlockHighlight() end
                 w:SetAlpha(1)
-                self:BindItemButton(w,PhysicalGroup(physicalMode,bagID,slotID,info))
+                local group=PhysicalGroup(physicalMode,bagID,slotID,info)
+                self:BindItemButton(w,group)
+                local searching=strtrim(self.bankSearchText or "")~=""
+                w:SetAlpha((not searching or self:GroupMatchesSearch(group,self.bankSearchText)) and 1 or .22)
                 w._bankSig=nil
                 if w.background then w.background:SetColorTexture(.08,.08,.08,.95) end
                 w:Show()
@@ -473,12 +498,13 @@ end
 function SB:OpenBank()
     self._nativePurchaseMode=false
     self:SuppressNativeBank()
-    if not self.bankMode then self.bankMode=CHARACTER end
+    self.bankMode=CHARACTER
     local tabs=(self.bankMode==MATERIALS) and MaterialTabIDs() or nil
     SelectBlizzardBank(self.bankMode,tabs and tabs[1])
     self:RefreshBank(); self.bankFrame:Show()
 end
 function SB:CloseBank()
+    self.bankMode=nil
     if self.bankFrame then self.bankFrame:Hide() end
 
     C_Timer.After(0, function()

@@ -4,7 +4,7 @@ SB = SB or {}
 _G.WagBag = SB
 
 SB.ADDON_NAME = ADDON_NAME
-SB.VERSION="1.0.0"
+SB.VERSION="1.0.4"
 SB.PREFIX = "|cff9b7cff[WagBag]|r"
 
 function SB:Print(message)
@@ -206,6 +206,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         return
     end
     if event == "BANKFRAME_OPENED" then
+        SB.bankMode = nil
         SB.bankAccessOpen = true
         SB.bankOpenGeneration = (SB.bankOpenGeneration or 0) + 1
         local generation = SB.bankOpenGeneration
@@ -246,6 +247,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         SB:SetLocale(SB.localeOverride)
         if SB.RefreshLocalizedCategoryNames then SB:RefreshLocalizedCategoryNames() end
         SB:CreateMainFrame()
+        SB:CreateSettingsFrame()
+        SB:CreateMinimapButton()
         SB:InitializeRecentTracking()
         SB:InstallBagHooks()
         if SB.InstallBankHooks then SB:InstallBankHooks() end

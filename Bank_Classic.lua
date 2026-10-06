@@ -135,6 +135,16 @@ function SB:CreateBankFrame()
 
     local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOPLEFT",12,-12); title:SetText("WagBag — "..self:T("BANK"))
 
+    local searchBox=CreateFrame("EditBox",nil,f,"BackdropTemplate")
+    searchBox:SetSize(132,20); searchBox:SetPoint("LEFT",title,"RIGHT",8,0); searchBox:SetAutoFocus(false); searchBox:SetFontObject("GameFontHighlight"); searchBox:SetTextInsets(6,18,0,0); searchBox:EnableMouse(true); searchBox:SetFrameLevel(f:GetFrameLevel()+4)
+    searchBox:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1}); searchBox:SetBackdropColor(.035,.035,.045,.96); searchBox:SetBackdropBorderColor(.16,.16,.20,1)
+    local placeholder=searchBox:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); placeholder:SetPoint("LEFT",6,0); placeholder:SetText(self:T("SEARCH"))
+    local clear=CreateFrame("Button",nil,searchBox); clear:SetSize(14,14); clear:SetPoint("RIGHT",-2,0); clear:SetFrameLevel(searchBox:GetFrameLevel()+1)
+    local clearText=clear:CreateFontString(nil,"OVERLAY","GameFontNormal"); clearText:SetPoint("CENTER"); clearText:SetText("×"); clear:Hide()
+    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); SB.bankSearchText=text; if f:IsShown() then SB:RefreshBank() end end)
+    searchBox:SetScript("OnEscapePressed",function(box) box:ClearFocus() end); searchBox:SetScript("OnEnterPressed",function(box) box:ClearFocus() end)
+    clear:SetScript("OnClick",function() searchBox:SetText(""); searchBox:ClearFocus() end); f.searchBox=searchBox
+
     local close=self:CreateHeaderCloseButton(f,function()
         if _G.CloseBankFrame then _G.CloseBankFrame() elseif f then f:Hide() end
     end)
@@ -207,7 +217,7 @@ function SB:RefreshBank()
             local w=f.bankButtonsBySlot[key]; if not w then w=self:CreateBankItemButton(f); f.bankButtonsBySlot[key]=w; f.itemButtons[#f.itemButtons+1]=w end
             w:ClearAllPoints(); w:SetPoint("TOPLEFT",f,"TOPLEFT",12+col*(self.SLOT_SIZE+self.SLOT_SPACING),-(48+row*(self.SLOT_SIZE+self.SLOT_SPACING))); w:SetID(bagID); w.nativeButton:SetID(slotID)
             local info=C_Container.GetContainerItemInfo(bagID,slotID)
-            if info and info.itemID then self:BindItemButton(w,PhysicalGroup(bagID,slotID,info)); if w.background then w.background:SetColorTexture(.08,.08,.08,.95) end; w:Show() else ClearCell(w,bagID,slotID) end
+            if info and info.itemID then local group=PhysicalGroup(bagID,slotID,info); self:BindItemButton(w,group); local searching=strtrim(self.bankSearchText or "")~=""; w:SetAlpha((not searching or self:GroupMatchesSearch(group,self.bankSearchText)) and 1 or .22); if w.background then w.background:SetColorTexture(.08,.08,.08,.95) end; w:Show() else ClearCell(w,bagID,slotID) end
         end
     end
     for key,w in pairs(f.bankButtonsBySlot) do if not live[key] then w:Hide() end end
