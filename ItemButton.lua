@@ -205,6 +205,7 @@ function SB:CreateItemButton(parent)
     wrapper.nativeButton = button
 
     button:HookScript("OnDragStart", function()
+        if wrapper.disableCategoryDrag then return end
         if IsShiftKeyDown() and wrapper.group and SB.BeginCategoryDrag then
             ClearCursor()
             SB:BeginCategoryDrag(wrapper.group)
@@ -212,6 +213,7 @@ function SB:CreateItemButton(parent)
     end)
 
     button:HookScript("OnClick", function(_, mouseButton)
+        if wrapper.disableCategoryDrag then return end
         if mouseButton ~= "LeftButton" or not IsShiftKeyDown() then return end
         local edit = SB.GetActiveCategoryItemIDEditBox and SB:GetActiveCategoryItemIDEditBox()
         local group = wrapper.group
@@ -392,14 +394,6 @@ function SB:UpdateCanIMogIt(wrapper, group)
         overlay:Show()
         WagBag_CIMIUpdateIcon(overlay)
     end
-end
-
-local function FormatCooldownSeconds(seconds)
-    if seconds <= 0 then return "" end
-    if seconds >= 60 then
-        return tostring(math.max(1, math.ceil(seconds / 60))) .. "m"
-    end
-    return tostring(math.max(1, math.ceil(seconds))) .. "s"
 end
 
 function SB:UpdateItemCooldown(wrapper, group)

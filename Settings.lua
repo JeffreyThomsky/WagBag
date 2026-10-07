@@ -171,7 +171,7 @@ function SB:CreateBagsSettings(parent)
     page.anchorSelector=AnchorSelector(page,SB:T("GROWTH_ANCHOR"),y,function()return SB.db.layout.growthAnchor or "TOPLEFT" end,function(v)SB:SetGrowthAnchor(v)end); y=y-82
 
     y=Section(page,SB:T("ITEMS"),y)
-    local sortLabel=Label(page,SB:T("ITEM_SORT"),0,y-8)
+    Label(page,SB:T("ITEM_SORT"),0,y-8)
     page.sortButton=Button(page,"",175); page.sortButton:SetPoint("TOPLEFT",205,y)
     page.sortNames={default=SB:T("SORT_TYPE"),name=SB:T("SORT_NAME"),quality=SB:T("SORT_QUALITY"),itemLevel=SB:T("SORT_ITEM_LEVEL")}
     local order={"default","name","quality","itemLevel"}
@@ -467,15 +467,21 @@ function SB:CreateBankSettings(parent)
     local y=0
     y=Section(page,SB:T("BANK_WINDOW"),y)
     page.placeButton=Button(page,SB:T("BANK_POSITION"),190);page.placeButton:SetPoint("TOPLEFT",0,y);page.placeButton:SetScript("OnClick",function()SB:ToggleBankPlacement()end);y=y-42
-    page.scaleSlider=Slider(page,SB:T("BANK_SCALE"),y,.5,2,.05,function()return SB.db.bankLayout.scale or 1 end,function(v)if not SB.bankPlacementActive then SB.db.bankLayout.scale=v;if SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
-    page.columnsSlider=Slider(page,SB:T("CELLS_PER_ROW"),y,6,30,1,function()return SB.db.bankLayout.cellsPerRow or 18 end,function(v)if not SB.bankPlacementActive then SB.db.bankLayout.cellsPerRow=v;if SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end end);y=y-ROW_H
-    page.alphaSlider=Slider(page,SB:T("WINDOW_ALPHA"),y,.15,1,.05,function()return SB.db.bankLayout.backgroundAlpha or .92 end,function(v)if not SB.bankPlacementActive then SB.db.bankLayout.backgroundAlpha=v;if SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
-    page.anchorSelector=AnchorSelector(page,SB:T("BANK_ANCHOR"),y,function()return SB.db.bankLayout.anchor or "TOPLEFT"end,function(v)if not SB.bankPlacementActive then SB.db.bankLayout.anchor=v;if SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyBankAnchor(v) end end end); y=y-82
+    page.scaleSlider=Slider(page,SB:T("BANK_SCALE"),y,.5,2,.05,function()return SB.db.bankLayout.scale or 1 end,function(v)if SB.SetBankScale then SB:SetBankScale(v) else SB.db.bankLayout.scale=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
+    page.columnsSlider=Slider(page,SB:T("CELLS_PER_ROW"),y,6,30,1,function()return SB.db.bankLayout.cellsPerRow or 18 end,function(v)SB.db.bankLayout.cellsPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);y=y-ROW_H
+    page.blocksSlider=Slider(page,SB:T("BANK_BLOCKS_PER_ROW"),y,1,4,1,function()return SB.db.bankLayout.blocksPerRow or 2 end,function(v)SB.db.bankLayout.blocksPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);y=y-ROW_H
+    page.alphaSlider=Slider(page,SB:T("WINDOW_ALPHA"),y,.15,1,.05,function()return SB.db.bankLayout.backgroundAlpha or .92 end,function(v)SB.db.bankLayout.backgroundAlpha=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
+    if not SB.isClassic then
+        page.separateMaterials=Check(page,SB:T("SHOW_MATERIALS_SEPARATELY"),function()return SB.db.bankLayout.separateMaterials and true or false end,function(v)SB.db.bankLayout.separateMaterials=v;if not v and SB.bankMode=="materials" and SB.bankFrame and SB.bankFrame.charButton then SB.bankFrame.charButton:Click() elseif SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);page.separateMaterials:SetPoint("TOPLEFT",0,y);y=y-ROW_H
+    end
+    page.anchorSelector=AnchorSelector(page,SB:T("BANK_ANCHOR"),y,function()return SB.db.bankLayout.anchor or "TOPLEFT"end,function(v)SB.db.bankLayout.anchor=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyBankAnchor(v) end end); y=y-82
     page.reset=Button(page,SB:T("RESET_SETTINGS"),155); page.reset:SetPoint("TOPLEFT",0,y)
     page.reset:SetScript("OnClick",function()
         if SB.bankPlacementActive then SB:FinishBankPlacement() end
         SB.db.bankLayout.scale=1
         SB.db.bankLayout.cellsPerRow=18
+        SB.db.bankLayout.blocksPerRow=2
+        SB.db.bankLayout.separateMaterials=false
         SB.db.bankLayout.backgroundAlpha=.92
         SB.db.bankLayout.anchor="TOPLEFT"
         if SB.bankFrame and SB.bankFrame:IsShown() then
@@ -491,8 +497,9 @@ end
 function SB:RefreshBankSettingsValues()
     local f=self.settingsFrame;if not f or not f.bankPage then return end
     local p=f.bankPage
-    for _,x in ipairs({p.scaleSlider,p.columnsSlider,p.alphaSlider})do if x then x:Sync();x:SetEnabled(not self.bankPlacementActive);x:SetAlpha(self.bankPlacementActive and .4 or 1)end end
-    if p.anchorSelector then p.anchorSelector:Sync();p.anchorSelector:SetAlpha(self.bankPlacementActive and .4 or 1);p.anchorSelector:EnableMouse(not self.bankPlacementActive)end
+    for _,x in ipairs({p.scaleSlider,p.columnsSlider,p.blocksSlider,p.alphaSlider})do if x then x:Sync();x:SetEnabled(true);x:SetAlpha(1)end end
+    if p.anchorSelector then p.anchorSelector:Sync();p.anchorSelector:SetAlpha(1);p.anchorSelector:EnableMouse(true)end
+    if p.separateMaterials then p.separateMaterials:SetChecked(self.db.bankLayout.separateMaterials and true or false) end
     if p.placeButton then p.placeButton:SetText(self.bankPlacementActive and SB:T("LOCK_POSITION") or SB:T("BANK_POSITION"))end
 end
 
@@ -513,16 +520,48 @@ function SB:ShowProfileExportModal(text)
         f.box=CreateFrame("EditBox",nil,f.scroll)
         f.box:SetMultiLine(true);f.box:SetAutoFocus(false);f.box:SetFontObject("GameFontHighlightSmall");f.box:SetWidth(490);f.box:SetHeight(1200);f.box:SetTextInsets(2,2,2,2);f.box:SetJustifyH("LEFT");f.box:SetJustifyV("TOP")
         f.scroll:SetScrollChild(f.box)
-        f.cancel=Button(f,self:T("CANCEL"),150);f.cancel:SetPoint("BOTTOMRIGHT",-18,16)
+        f.cancel=Button(f,self:T("CLOSE"),150);f.cancel:SetPoint("BOTTOMRIGHT",-18,16)
         f.cancel:SetScript("OnClick",function() f:Hide() end)
         f.box:SetScript("OnEscapePressed",function() f:Hide() end)
         f:SetScript("OnKeyDown",function(_,key) if key=="ESCAPE" then f:Hide() end end)
         f:SetScript("OnShow",function() f.scroll:SetVerticalScroll(0);f.box:SetFocus();f.box:HighlightText() end)
         self.profileExportModal=f
     end
-    f.title:SetText(self:T("PROFILE_EXPORT_TITLE"));f.hint:SetText(self:T("PROFILE_EXPORT_HINT"));f.cancel:SetText(self:T("CANCEL"))
+    f.title:SetText(self:T("PROFILE_EXPORT_TITLE"));f.hint:SetText(self:T("PROFILE_EXPORT_HINT"));f.cancel:SetText(self:T("CLOSE"))
     local display=(text or ""):gsub("(.{80})","%1\n")
     f.box:SetText(display);f.box:SetCursorPosition(0);f:Show();f:Raise();f.box:SetFocus();f.box:HighlightText()
+end
+
+function SB:ShowProfileNameModal(title,initial,onAccept)
+    local f=self.profileNameModal
+    if not f then
+        f=CreateFrame("Frame","WagBagProfileNameModal",UIParent,"BackdropTemplate")
+        f:SetSize(380,132);f:SetPoint("CENTER");f:SetFrameStrata("FULLSCREEN_DIALOG");f:SetClampedToScreen(true);f:EnableMouse(true);f:EnableKeyboard(true)
+        if f.SetPropagateKeyboardInput then f:SetPropagateKeyboardInput(false) end
+        Backdrop(f,{.018,.018,.024,.995},{.22,.22,.27,1})
+        f.title=Label(f,"",18,-18,"GameFontNormalLarge")
+        f.edit=Edit(f,344);f.edit:SetPoint("TOPLEFT",18,-52)
+        f.ok=Button(f,"",110);f.ok:SetPoint("BOTTOMRIGHT",-136,16)
+        f.cancel=Button(f,"",110);f.cancel:SetPoint("BOTTOMRIGHT",-18,16)
+        f.error=Label(f,"",18,-80,"GameFontRedSmall");f.error:SetPoint("RIGHT",-18,0);f.error:SetJustifyH("LEFT")
+        local function Accept()
+            local name=strtrim(f.edit:GetText() or "")
+            local ok,reason=f.accept and f.accept(name)
+            if ok then f:Hide() else
+                if reason=="exists" then f.error:SetText(SB:T("PROFILE_NAME_EXISTS",name))
+                elseif reason=="default" then f.error:SetText(SB:T("PROFILE_DEFAULT_PROTECTED"))
+                else f.error:SetText(SB:T("PROFILE_NAME_REQUIRED")) end
+            end
+        end
+        f.ok:SetScript("OnClick",Accept)
+        f.cancel:SetScript("OnClick",function()f:Hide()end)
+        f.edit:SetScript("OnEnterPressed",Accept)
+        f.edit:SetScript("OnEscapePressed",function()f:Hide()end)
+        f:SetScript("OnKeyDown",function(_,key)if key=="ESCAPE" then f:Hide() end end)
+        self.profileNameModal=f
+    end
+    f.title:SetText(title);f.ok:SetText(self:T("OK"));f.cancel:SetText(self:T("CANCEL"));f.error:SetText("");f.accept=onAccept
+    f.edit:SetText(initial or "");f.edit:SetCursorPosition(0);f:Show();f:Raise();f.edit:SetFocus();f.edit:HighlightText()
 end
 
 function SB:CreateProfilesSettings(parent)
@@ -532,19 +571,25 @@ function SB:CreateProfilesSettings(parent)
     page.current=Label(page,"",0,y,"GameFontHighlight"); y=y-38
     Label(page,SB:T("PROFILE_SOURCE"),0,y-4)
 
-    page.profileDrop=Button(page,"",285); page.profileDrop:SetPoint("TOPLEFT",145,y-2)
-    page.profileDrop.text:ClearAllPoints(); page.profileDrop.text:SetPoint("LEFT",10,0); page.profileDrop.text:SetPoint("RIGHT",-24,0); page.profileDrop.text:SetJustifyH("LEFT")
+    local controlsLeft=120
+    local controlsWidth=310
+    local useWidth=92
+    local gap=8
+    local dropWidth=controlsWidth-useWidth-gap
+    page.profileDrop=Button(page,"",dropWidth);page.profileDrop:SetPoint("TOPLEFT",controlsLeft,y-2)
+    page.profileDrop.text:ClearAllPoints();page.profileDrop.text:SetPoint("LEFT",10,0);page.profileDrop.text:SetPoint("RIGHT",-24,0);page.profileDrop.text:SetJustifyH("LEFT")
     page.profileDrop.arrow=page.profileDrop:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");page.profileDrop.arrow:SetPoint("RIGHT",-8,0);page.profileDrop.arrow:SetText("v")
-    page.profileMenu=CreateFrame("Frame",nil,page,"BackdropTemplate");page.profileMenu:SetPoint("TOPLEFT",page.profileDrop,"BOTTOMLEFT",0,-2);page.profileMenu:SetWidth(285);page.profileMenu:SetFrameStrata("TOOLTIP");page.profileMenu:Hide();Backdrop(page.profileMenu,{.025,.025,.032,.99},{.28,.28,.33,1});page.profileMenu.rows={}
-    page.profileDrop:SetScript("OnClick",function() page.profileMenu:SetShown(not page.profileMenu:IsShown()) end)
+    page.use=Button(page,SB:T("PROFILE_USE"),useWidth);page.use:SetPoint("LEFT",page.profileDrop,"RIGHT",gap,0)
+    page.profileMenu=CreateFrame("Frame",nil,page,"BackdropTemplate");page.profileMenu:SetPoint("TOPLEFT",page.profileDrop,"BOTTOMLEFT",0,-2);page.profileMenu:SetWidth(dropWidth);page.profileMenu:SetFrameStrata("TOOLTIP");page.profileMenu:Hide();Backdrop(page.profileMenu,{.025,.025,.032,.99},{.28,.28,.33,1});page.profileMenu.rows={}
+    page.profileDrop:SetScript("OnClick",function()page.profileMenu:SetShown(not page.profileMenu:IsShown())end)
     y=y-38
-    page.load=Button(page,SB:T("PROFILE_USE"),90);page.load:SetPoint("TOPLEFT",145,y)
-    page.copy=Button(page,SB:T("PROFILE_COPY"),120);page.copy:SetPoint("LEFT",page.load,"RIGHT",8,0)
-    page.delete=Button(page,SB:T("PROFILE_DELETE"),90);page.delete:SetPoint("LEFT",page.copy,"RIGHT",8,0);y=y-48
+    local buttonWidth=(controlsWidth-gap*2)/3
+    page.new=Button(page,SB:T("PROFILE_NEW"),buttonWidth);page.new:SetPoint("TOPLEFT",controlsLeft,y)
+    page.rename=Button(page,SB:T("PROFILE_RENAME"),buttonWidth);page.rename:SetPoint("LEFT",page.new,"RIGHT",gap,0)
+    page.delete=Button(page,SB:T("PROFILE_DELETE"),buttonWidth);page.delete:SetPoint("LEFT",page.rename,"RIGHT",gap,0);y=y-48
 
     y=Section(page,SB:T("PROFILE_TRANSFER"),y)
     Label(page,SB:T("PROFILE_STRING"),0,y-4)
-
     page.transferBox=CreateFrame("Frame",nil,page,"BackdropTemplate")
     page.transferBox:SetPoint("TOPLEFT",0,y-26);page.transferBox:SetSize(430,112)
     Backdrop(page.transferBox,{.015,.015,.02,.92},{.32,.32,.36,1})
@@ -552,129 +597,123 @@ function SB:CreateProfilesSettings(parent)
     page.transferScroll:SetPoint("TOPLEFT",7,-7);page.transferScroll:SetPoint("BOTTOMRIGHT",-27,7)
     page.transfer=CreateFrame("EditBox",nil,page.transferScroll)
     page.transfer:SetMultiLine(true);page.transfer:SetAutoFocus(false);page.transfer:SetFontObject("GameFontHighlightSmall")
-    page.transfer:SetWidth(390);page.transfer:SetHeight(96);page.transfer:SetTextInsets(2,2,2,2)
-    page.transfer:SetBlinkSpeed(0.5)
-    page.transfer:SetTextColor(1,1,1,1)
-
-    page.transferCaret=page.transfer:CreateTexture(nil,"OVERLAY")
-    page.transferCaret:SetColorTexture(1,1,1,1)
-    page.transferCaret:SetSize(1,12)
-    page.transferCaret:Hide()
+    page.transfer:SetWidth(390);page.transfer:SetHeight(96);page.transfer:SetTextInsets(2,2,2,2);page.transfer:SetBlinkSpeed(.5);page.transfer:SetTextColor(1,1,1,1)
+    page.transferCaret=page.transfer:CreateTexture(nil,"OVERLAY");page.transferCaret:SetColorTexture(1,1,1,1);page.transferCaret:SetSize(1,12);page.transferCaret:Hide()
     local caretClock=0
     local function ShowTransferCaret(x,y,h)
-        local c=page.transferCaret
-        c:ClearAllPoints()
-        c:SetPoint("TOPLEFT",page.transfer,"TOPLEFT",(x or 0)+2,(y or 0)-2)
-        c:SetHeight(math.max(10,math.min(14,h or 12)))
-        c:Show(); c:SetAlpha(1); caretClock=0
+        local c=page.transferCaret;c:ClearAllPoints();c:SetPoint("TOPLEFT",page.transfer,"TOPLEFT",(x or 0)+2,(y or 0)-2);c:SetHeight(math.max(10,math.min(14,h or 12)));c:Show();c:SetAlpha(1);caretClock=0
     end
-    page.transfer:SetScript("OnCursorChanged",function(x,cx,cy,cw,ch)
-        if x:HasFocus() then ShowTransferCaret(cx,cy,ch) end
-    end)
-    page.transfer:SetScript("OnUpdate",function(x,elapsed)
-        if not x:HasFocus() then page.transferCaret:Hide(); return end
-        caretClock=caretClock+elapsed
-        page.transferCaret:SetAlpha((caretClock % 1.0)<0.5 and 1 or 0)
-    end)
-    page.transfer:SetJustifyH("LEFT")
-    page.transfer:SetJustifyV("TOP")
-    page.transfer:SetScript("OnMouseDown",function(x)
-        x:SetFocus()
-        if x:GetText()=="" then x:SetCursorPosition(0) end
-    end)
-    page.transfer:SetScript("OnEditFocusGained",function(x)
-        if x:GetText()=="" then x:SetCursorPosition(0) end
-        ShowTransferCaret(0,0,12)
-    end)
-    page.transfer:SetScript("OnEditFocusLost",function() page.transferCaret:Hide() end)
+    page.transfer:SetScript("OnCursorChanged",function(x,cx,cy,cw,ch)if x:HasFocus() then ShowTransferCaret(cx,cy,ch) end end)
+    page.transfer:SetScript("OnUpdate",function(x,elapsed)if not x:HasFocus() then page.transferCaret:Hide();return end;caretClock=caretClock+elapsed;page.transferCaret:SetAlpha((caretClock%1)<.5 and 1 or 0)end)
+    page.transfer:SetJustifyH("LEFT");page.transfer:SetJustifyV("TOP")
+    page.transfer:SetScript("OnMouseDown",function(x)x:SetFocus();if x:GetText()=="" then x:SetCursorPosition(0) end end)
+    page.transfer:SetScript("OnEditFocusGained",function(x)if x:GetText()=="" then x:SetCursorPosition(0) end;ShowTransferCaret(0,0,12)end)
+    page.transfer:SetScript("OnEditFocusLost",function()page.transferCaret:Hide()end)
     page.transfer:SetScript("OnEscapePressed",function(x)x:ClearFocus()end)
-    page.transfer:SetScript("OnTextChanged",function(x)
-        if x:GetHeight() < 96 then x:SetHeight(96) end
-        page.transferScroll:UpdateScrollChildRect()
-    end)
+    page.transfer:SetScript("OnTextChanged",function(x)if x:GetHeight()<96 then x:SetHeight(96) end;page.transferScroll:UpdateScrollChildRect()end)
     page.transferScroll:SetScrollChild(page.transfer)
-
     page.export=Button(page,SB:T("PROFILE_EXPORT"),150);page.export:SetPoint("TOPLEFT",page.transferBox,"BOTTOMLEFT",0,-10)
     page.import=Button(page,SB:T("PROFILE_IMPORT"),150);page.import:SetPoint("LEFT",page.export,"RIGHT",10,0)
 
-    page.load:SetScript("OnClick",function()
+    page.use:SetScript("OnClick",function()
         local key=page.selectedProfile
         if not key then SB:Print(SB:T("PROFILE_NOT_FOUND"));return end
-        if SB:SelectProfile(key) then SB:Print(SB:T("PROFILE_LOADED",key));SB:RefreshProfilesSettings();Apply() end
+        if SB:SelectProfile(key) then SB:Print(SB:T("PROFILE_LOADED",key));page.selectedProfile=key;SB:RefreshProfilesSettings();Apply()end
     end)
-    page.copy:SetScript("OnClick",function()
+    page.new:SetScript("OnClick",function()
+        SB:ShowProfileNameModal(SB:T("PROFILE_NEW_TITLE"),SB:GetCharacterProfileKey(),function(name)
+            local ok,reason,target=SB:CreateProfile(name)
+            if ok then
+                SB:SelectProfile(target)
+                page.selectedProfile=target
+                SB:RefreshProfilesSettings()
+                Apply()
+                return true
+            end
+            return false,reason
+        end)
+    end)
+    page.rename:SetScript("OnClick",function()
         local key=page.selectedProfile
         if not key then SB:Print(SB:T("PROFILE_NOT_FOUND"));return end
-        local ok,reason,target=SB:CreateCharacterProfileCopy(key)
-        if ok then
-            SB:Print(SB:T("PROFILE_COPIED",target,key))
-            page.selectedProfile=target
-            SB:RefreshProfilesSettings()
-            Apply()
-        elseif reason=="exists" then
-            SB:Print(SB:T("PROFILE_COPY_EXISTS",target))
-        end
+        if key=="Default" then SB:Print(SB:T("PROFILE_DEFAULT_PROTECTED"));return end
+        SB:ShowProfileNameModal(SB:T("PROFILE_RENAME_TITLE"),key,function(name)
+            local ok,reason,target=SB:RenameProfile(key,name)
+            if ok then page.selectedProfile=target;SB:RefreshProfilesSettings();return true end
+            return false,reason
+        end)
     end)
     page.delete:SetScript("OnClick",function()
         local key=page.selectedProfile
         if not key then SB:Print(SB:T("PROFILE_NOT_FOUND"));return end
         if key==SB:GetCurrentProfileName() then SB:Print(SB:T("PROFILE_DELETE_CURRENT"));return end
-        StaticPopupDialogs["WAGBAG_DELETE_PROFILE"]={text=SB:T("PROFILE_DELETE_CONFIRM",key),button1=SB:T("DELETE"),button2=SB:T("CANCEL"),OnAccept=function()if SB:DeleteProfile(key) then SB:Print(SB:T("PROFILE_DELETED",key));page.selectedProfile=nil;SB:RefreshProfilesSettings()end end,timeout=0,whileDead=true,hideOnEscape=true,preferredIndex=3}
+        StaticPopupDialogs["WAGBAG_DELETE_PROFILE"]={text=SB:T("PROFILE_DELETE_CONFIRM",key),button1=SB:T("DELETE"),button2=SB:T("CANCEL"),OnAccept=function()if SB:DeleteProfile(key) then SB:Print(SB:T("PROFILE_DELETED",key));page.selectedProfile=SB:GetCurrentProfileName();SB:RefreshProfilesSettings()end end,timeout=0,whileDead=true,hideOnEscape=true,preferredIndex=3}
         StaticPopup_Show("WAGBAG_DELETE_PROFILE")
     end)
     page.export:SetScript("OnClick",function()SB:ShowProfileExportModal(SB:ExportProfile())end)
-    page.import:SetScript("OnClick",function()local ok=SB:ImportProfile(page.transfer:GetText());if ok then SB:Print(SB:T("PROFILE_IMPORTED"));SB:RefreshProfilesSettings();Apply()else SB:Print(SB:T("PROFILE_IMPORT_ERROR"))end end)
+    page.import:SetScript("OnClick",function()
+        local ok,reason,target=SB:ImportProfile(page.transfer:GetText(),SB:GetCharacterProfileKey())
+        if ok then
+            SB:SelectProfile(target)
+            SB:Print(SB:T("PROFILE_IMPORTED",target))
+            page.selectedProfile=target
+            page.transfer:SetText("")
+            page.transfer:ClearFocus()
+            SB:RefreshProfilesSettings()
+            Apply()
+        elseif reason=="exists" then SB:Print(SB:T("PROFILE_NAME_EXISTS",target))
+        else SB:Print(SB:T("PROFILE_IMPORT_ERROR")) end
+    end)
     parent.profilesPage=page
 end
 
 function SB:RefreshProfilesSettings()
     local f=self.settingsFrame;if not f or not f.profilesPage then return end
     local p=f.profilesPage
-    p.current:SetText(SB:T("PROFILE_CURRENT",self.profilePersisted and self:GetCurrentProfileName() or SB:T("PROFILE_UNSAVED")))
+    p.current:SetText(SB:T("PROFILE_CURRENT",self:GetCurrentProfileName()))
     local names=self:GetProfileNames()
     if p.selectedProfile and not (WagBagDB.profiles and WagBagDB.profiles[p.selectedProfile]) then p.selectedProfile=nil end
-    if not p.selectedProfile then
-        for _,name in ipairs(names) do if name~=self:GetCurrentProfileName() then p.selectedProfile=name;break end end
-        if not p.selectedProfile then p.selectedProfile=names[1] end
-    end
+    if not p.selectedProfile then p.selectedProfile=self:GetCurrentProfileName() end
     p.profileDrop:SetText(p.selectedProfile or SB:T("PROFILE_SELECT"))
     for _,row in ipairs(p.profileMenu.rows) do row:Hide() end
     for i,name in ipairs(names) do
         local row=p.profileMenu.rows[i]
         if not row then
-            row=Button(p.profileMenu,"",281);row:SetHeight(24);row:SetPoint("TOPLEFT",2,-2-(i-1)*24);row.text:ClearAllPoints();row.text:SetPoint("LEFT",8,0);row.text:SetJustifyH("LEFT");p.profileMenu.rows[i]=row
+            row=Button(p.profileMenu,"",p.profileDrop:GetWidth()-4);row:SetHeight(24);row:SetPoint("TOPLEFT",2,-2-(i-1)*24);row.text:ClearAllPoints();row.text:SetPoint("LEFT",8,0);row.text:SetJustifyH("LEFT");p.profileMenu.rows[i]=row
         end
-        row.profileName=name;row:SetText(name);row:SetScript("OnClick",function(b)
-            p.selectedProfile=b.profileName
-            p.profileDrop:SetText(b.profileName)
-            p.profileMenu:Hide()
-            local isCurrent=b.profileName==SB:GetCurrentProfileName()
-            local target=SB:GetCharacterProfileKey()
-            local canCopy=not (WagBagDB.profiles and WagBagDB.profiles[target])
-            p.load:SetEnabled(true);p.load:SetAlpha(1)
-            p.copy:SetEnabled(canCopy);p.copy:SetAlpha(canCopy and 1 or .45)
-            local canDelete=not isCurrent and b.profileName~="Default"
-            p.delete:SetEnabled(canDelete);p.delete:SetAlpha(canDelete and 1 or .45)
-        end);row:Show()
+        row.profileName=name;row:SetText(name);row:SetScript("OnClick",function(b)p.selectedProfile=b.profileName;p.profileDrop:SetText(b.profileName);p.profileMenu:Hide();SB:RefreshProfilesSettings()end);row:Show()
     end
     p.profileMenu:SetHeight(math.max(4,#names*24+4))
     local hasSelection=p.selectedProfile~=nil
-    local target=self:GetCharacterProfileKey()
-    local canCopy=hasSelection and not (WagBagDB.profiles and WagBagDB.profiles[target])
+    local canRename=hasSelection and p.selectedProfile~="Default"
     local canDelete=hasSelection and p.selectedProfile~=self:GetCurrentProfileName() and p.selectedProfile~="Default"
-    p.load:SetEnabled(hasSelection);p.load:SetAlpha(hasSelection and 1 or .45)
-    p.copy:SetEnabled(canCopy);p.copy:SetAlpha(canCopy and 1 or .45)
+    p.use:SetEnabled(hasSelection);p.use:SetAlpha(hasSelection and 1 or .45)
+    p.new:SetEnabled(true);p.new:SetAlpha(1)
+    p.rename:SetEnabled(canRename);p.rename:SetAlpha(canRename and 1 or .45)
     p.delete:SetEnabled(canDelete);p.delete:SetAlpha(canDelete and 1 or .45)
 end
 
 function SB:CreateSettingsFrame()
     if self.settingsFrame then return self.settingsFrame end
-    local f=CreateFrame("Frame","WagBagSettingsPanel")
-    f:SetSize(820,620)
+    local f=CreateFrame("Frame","WagBagSettingsPanel",UIParent,"BackdropTemplate")
+    f:SetSize(PANEL_WIDTH,PANEL_HEIGHT)
+    f:SetPoint("CENTER")
+    f:SetFrameStrata("DIALOG")
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart",function(frame) frame:StartMoving() end)
+    f:SetScript("OnDragStop",function(frame) frame:StopMovingOrSizing() end)
+    Backdrop(f,{.018,.018,.024,.97},{.16,.16,.20,1})
+    local title=f:CreateFontString(nil,"OVERLAY","GameFontNormal")
+    title:SetPoint("TOP",0,-14);title:SetText("WagBag")
+    local close=CreateFrame("Button",nil,f,"UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT",-3,-3);close:SetScript("OnClick",function()f:Hide()end)
     f.activeTab="bags"
 
     local nav=CreateFrame("Frame",nil,f,"BackdropTemplate")
-    nav:SetPoint("TOPLEFT",8,-8);nav:SetPoint("BOTTOMLEFT",8,8);nav:SetWidth(NAV_WIDTH)
+    nav:SetPoint("TOPLEFT",8,-50);nav:SetPoint("BOTTOMLEFT",8,8);nav:SetWidth(NAV_WIDTH)
     Backdrop(nav,{.025,.025,.032,.55},{.12,.12,.15,1})
     f.navButtons={}
     local tabs={{"bags",SB:T("TAB_BAGS")},{"bank",SB:T("TAB_BANK")},{"currency",SB:T("TAB_CURRENCY")},{"categories",SB:T("TAB_CATEGORIES")},{"profiles",SB:T("TAB_PROFILES")}}
@@ -685,37 +724,33 @@ function SB:CreateSettingsFrame()
         b:SetScript("OnClick",function() SB:SelectSettingsTab(d[1]) end)
         f.navButtons[d[1]]=b;prev=b
     end
+    local versionText=nav:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
+    versionText:SetPoint("BOTTOMLEFT",8,8)
+    versionText:SetText(SB.VERSION or "")
+    f.versionText=versionText
 
     self:CreateBagsSettings(f);self:CreateCategoriesSettings(f);self:CreateCurrencySettings(f);self:CreateBankSettings(f);self:CreateProfilesSettings(f)
     f:SetScript("OnShow",function()
+        f:ClearAllPoints()
+        f:SetPoint("CENTER")
         SB:SelectSettingsTab(f.activeTab or "bags")
         SB:RefreshSettingsValues()
         if SB.UpdateGrowthAnchorMarker then SB:UpdateGrowthAnchorMarker() end
     end)
     f:SetScript("OnHide",function()
-        if f.profilesPage and f.profilesPage.transfer then
-            f.profilesPage.transfer:SetText("")
-            f.profilesPage.transfer:ClearFocus()
-        end
+        if f.profilesPage and f.profilesPage.transfer then f.profilesPage.transfer:SetText("");f.profilesPage.transfer:ClearFocus() end
         if SB.growthAnchorMarker then SB.growthAnchorMarker:Hide() end
         if SB.bankPlacementActive then SB:FinishBankPlacement() end
     end)
-
     self.settingsFrame=f
-    if Settings and Settings.RegisterCanvasLayoutCategory then
-        local category=Settings.RegisterCanvasLayoutCategory(f,"WagBag")
-        Settings.RegisterAddOnCategory(category)
-        self.settingsCategory=category
-        self.settingsCategoryID=category.GetID and category:GetID() or category.ID or "WagBag"
-    end
+    f:Hide()
+    table.insert(UISpecialFrames,"WagBagSettingsPanel")
     return f
 end
 
 function SB:OpenSettings()
-    self:CreateSettingsFrame()
-    if Settings and Settings.OpenToCategory then
-        Settings.OpenToCategory(self.settingsCategoryID or "WagBag")
-    end
+    local f=self:CreateSettingsFrame()
+    if f:IsShown() then f:Raise() else f:Show() end
 end
 
 function SB:RefreshSettingsValues()

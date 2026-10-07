@@ -1,15 +1,39 @@
-local ADDON_NAME, SB = ...
+local _, SB = ...
 
 local CHARACTER = (Enum.BankType and Enum.BankType.Character) or 0
 local ACCOUNT   = (Enum.BankType and Enum.BankType.Account) or 2
 local MATERIALS = "materials"
 local REAGENT_FLAG = (Enum.BagSlotFlags and Enum.BagSlotFlags.ClassReagents) or 0x80
 
+local function FlatBankButton(parent,text,w)
+    local b=CreateFrame("Button",nil,parent,"BackdropTemplate")
+    b:SetSize(w or 82,22)
+    b:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+    b:SetBackdropColor(.045,.045,.055,.98)
+    b:SetBackdropBorderColor(.20,.20,.24,1)
+    b.text=b:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+    b.text:SetPoint("CENTER")
+    b.text:SetText(text or "")
+    function b:SetText(v) self.text:SetText(v or "") end
+    function b:SetActive(active)
+        self._active=active and true or false
+        self:SetBackdropColor(active and .12 or .045,active and .10 or .045,active and .035 or .055,1)
+        self:SetBackdropBorderColor(active and 1 or .20,active and .72 or .20,active and .05 or .24,1)
+        self.text:SetTextColor(active and 1 or .82,active and .82 or .82,active and .10 or .82)
+    end
+    b:SetScript("OnEnter",function(x) if not x._active then x:SetBackdropBorderColor(.62,.50,.10,1) end end)
+    b:SetScript("OnLeave",function(x) if not x._active then x:SetBackdropBorderColor(.20,.20,.24,1) end end)
+    b:SetActive(false)
+    return b
+end
+
 local function Layout()
     local l=SB.db.bankLayout
     if l.scale==nil then l.scale=1 end
     if l.backgroundAlpha==nil then l.backgroundAlpha=.97 end
     if l.cellsPerRow==nil then l.cellsPerRow=18 end
+    if l.blocksPerRow==nil then l.blocksPerRow=2 end
+    if l.separateMaterials==nil then l.separateMaterials=false end
     if l.anchor==nil then l.anchor="TOPLEFT" end
     return l
 end
@@ -73,6 +97,68 @@ local function NormalCharacterTabIDs()
         if not material[id] then out[#out+1]=id end
     end
     return out
+end
+
+local function BankSlotUsage(tabIDs)
+    local used,total=0,0
+    for _,bagID in ipairs(tabIDs or {}) do
+        local slots=C_Container.GetContainerNumSlots(bagID) or 0
+        total=total+slots
+        for slotID=1,slots do
+            if C_Container.GetContainerItemInfo(bagID,slotID) then used=used+1 end
+        end
+    end
+    return used,total
+end
+
+local function CreateBankSlotCounter(f,frameLevel)
+    local counter=CreateFrame("Frame",nil,f)
+    counter:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",12,7)
+    counter:SetSize(220,20)
+    counter:SetFrameLevel(frameLevel)
+
+    local bankIcon=counter:CreateTexture(nil,"ARTWORK")
+    bankIcon:SetSize(18,18)
+    bankIcon:SetPoint("LEFT",0,0)
+    bankIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+
+    local bankText=counter:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+    bankText:SetPoint("LEFT",bankIcon,"RIGHT",3,0)
+    bankText:SetJustifyH("LEFT")
+
+    local materialIcon=counter:CreateTexture(nil,"ARTWORK")
+    materialIcon:SetSize(18,18)
+    materialIcon:SetPoint("LEFT",bankText,"RIGHT",9,0)
+    materialIcon:SetTexture("Interface\\Icons\\INV_Enchant_DustIllusion")
+
+    local materialText=counter:CreateFontString(nil,"OVERLAY","GameFontHighlight")
+    materialText:SetPoint("LEFT",materialIcon,"RIGHT",3,0)
+    materialText:SetJustifyH("LEFT")
+
+    counter.bankText=bankText
+    counter.materialIcon=materialIcon
+    counter.materialText=materialText
+    f.slotCounter=counter
+end
+
+local function RefreshBankSlotCounter(f,mode)
+    if not f or not f.slotCounter then return end
+    local counter=f.slotCounter
+    if mode==ACCOUNT then
+        local used,total=BankSlotUsage(TabIDs(ACCOUNT))
+        counter.bankText:SetText(used.."/"..total)
+        counter.materialIcon:Hide()
+        counter.materialText:Hide()
+        return
+    end
+
+    local bankUsed,bankTotal=BankSlotUsage(NormalCharacterTabIDs())
+    local materialTabs=MaterialTabIDs()
+    local materialUsed,materialTotal=BankSlotUsage(materialTabs)
+    counter.bankText:SetText(bankUsed.."/"..bankTotal)
+    counter.materialIcon:SetShown(#materialTabs>0)
+    counter.materialText:SetShown(#materialTabs>0)
+    if #materialTabs>0 then counter.materialText:SetText(materialUsed.."/"..materialTotal) end
 end
 
 local function SelectBlizzardBank(bankType, selectedTabID)
@@ -148,11 +234,12 @@ end
 function SB:CreateBankFrame()
     if self.bankFrame then return self.bankFrame end
     local f=CreateFrame("Frame","WagBagBankFrame",UIParent,"BackdropTemplate")
-    f:SetFrameStrata("HIGH"); f:SetClampedToScreen(true)
+    f:SetFrameStrata("HIGH"); f:SetClampedToScreen(true); f:SetMovable(true)
     f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
     f:SetBackdropBorderColor(.12,.12,.15,1)
     local l=Layout()
-    if l.point then f:SetPoint(l.point,UIParent,l.relativePoint or l.point,l.x or 0,l.y or 0)
+    if l.anchorModel==2 then f:SetPoint("CENTER",-220,0)
+    elseif l.point then f:SetPoint(l.point,UIParent,l.relativePoint or l.point,l.x or 0,l.y or 0)
     else f:SetPoint("CENTER",-220,0) end
 
     local shield=CreateFrame("Frame",nil,f)
@@ -165,7 +252,13 @@ function SB:CreateBankFrame()
     if shield.SetPropagateMouseMotion then shield:SetPropagateMouseMotion(false) end
     shield:SetScript("OnEnter",function() GameTooltip:Hide() end)
     shield:SetScript("OnMouseDown",function() end)
-    shield:SetScript("OnMouseUp",function() end)
+    shield:SetScript("OnMouseUp",function(_,button)
+        if (button=="LeftButton" or button=="RightButton") and CursorHasItem() and SB.bankAccessOpen and not SB.bankPlacementActive then
+            if SB:DropCursorItemIntoBank() then
+                C_Timer.After(0,function() if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end)
+            end
+        end
+    end)
     f.mouseShield=shield
     local contentLevel=f:GetFrameLevel()+2
 
@@ -199,16 +292,16 @@ function SB:CreateBankFrame()
     local placeholder=searchBox:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); placeholder:SetPoint("LEFT",6,0); placeholder:SetText(self:T("SEARCH"))
     local clear=CreateFrame("Button",nil,searchBox); clear:SetSize(14,14); clear:SetPoint("RIGHT",-2,0); clear:SetFrameLevel(searchBox:GetFrameLevel()+1)
     local clearText=clear:CreateFontString(nil,"OVERLAY","GameFontNormal"); clearText:SetPoint("CENTER"); clearText:SetText("×"); clear:Hide()
-    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); SB.bankSearchText=text; if f:IsShown() then SB:RefreshBank() end end)
+    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); SB.bankSearchText=text; if f:IsShown() and SB.bankAccessOpen then SB:RefreshBank() end end)
     searchBox:SetScript("OnEscapePressed",function(box) box:ClearFocus() end); searchBox:SetScript("OnEnterPressed",function(box) box:ClearFocus() end)
     clear:SetScript("OnClick",function() searchBox:SetText(""); searchBox:ClearFocus() end); f.searchBox=searchBox
 
-    local char=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-    char:SetSize(82,22); char:SetFrameLevel(contentLevel) char:SetPoint("TOPLEFT",12,-36); char:SetText(self:T("BANK"))
-    local reagent=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-    reagent:SetSize(92,22); reagent:SetFrameLevel(contentLevel); reagent:SetPoint("LEFT",char,"RIGHT",5,0); reagent:SetText(self:T("MATERIALS_BANK"))
-    local war=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-    war:SetSize(82,22); war:SetFrameLevel(contentLevel); war:SetPoint("LEFT",reagent,"RIGHT",5,0); war:SetText(self:T("WARBAND"))
+    local char=FlatBankButton(f,self:T("BANK"),82)
+    char:SetFrameLevel(contentLevel); char:SetPoint("TOPLEFT",12,-36)
+    local reagent=FlatBankButton(f,self:T("MATERIALS_BANK"),92)
+    reagent:SetFrameLevel(contentLevel); reagent:SetPoint("LEFT",char,"RIGHT",5,0)
+    local war=FlatBankButton(f,self:T("WARBAND"),82)
+    war:SetFrameLevel(contentLevel); war:SetPoint("LEFT",reagent,"RIGHT",5,0)
     char:SetScript("OnClick",function()
         SB.bankMode=CHARACTER
         SelectBlizzardBank(CHARACTER)
@@ -229,14 +322,14 @@ function SB:CreateBankFrame()
     local gold=f:CreateFontString(nil,"OVERLAY","GameFontHighlight")
     gold:SetPoint("LEFT",war,"RIGHT",12,0); gold:Hide(); f.goldText=gold
 
-    local deposit=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-    deposit:SetSize(62,22); deposit:SetFrameLevel(contentLevel) deposit:SetPoint("LEFT",gold,"RIGHT",10,0); deposit:SetText(self:T("DEPOSIT"))
+    local deposit=FlatBankButton(f,self:T("DEPOSIT"),62)
+    deposit:SetFrameLevel(contentLevel); deposit:SetPoint("LEFT",gold,"RIGHT",10,0)
     deposit:SetScript("OnClick",function()
         if SB.bankMode~=ACCOUNT or not C_Bank or not C_Bank.DepositMoney then return end
         StaticPopup_Show("WAGBAG_DEPOSIT_GOLD")
     end)
-    local withdraw=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
-    withdraw:SetSize(62,22); withdraw:SetFrameLevel(contentLevel) withdraw:SetPoint("LEFT",deposit,"RIGHT",4,0); withdraw:SetText(self:T("WITHDRAW"))
+    local withdraw=FlatBankButton(f,self:T("WITHDRAW"),62)
+    withdraw:SetFrameLevel(contentLevel); withdraw:SetPoint("LEFT",deposit,"RIGHT",4,0)
     withdraw:SetScript("OnClick",function()
         if SB.bankMode~=ACCOUNT or not C_Bank or not C_Bank.WithdrawMoney then return end
         StaticPopup_Show("WAGBAG_WITHDRAW_GOLD")
@@ -324,6 +417,7 @@ function SB:CreateBankFrame()
     end)
     purchase:SetScript("OnLeave",GameTooltip_Hide)
     f.purchaseButton=purchase
+    CreateBankSlotCounter(f,contentLevel)
 
     f.itemButtons={}; f.bankButtonsBySlot={}; f.emptySlots={}
     self.bankFrame=f
@@ -379,6 +473,171 @@ local function ClearPhysicalBankCell(w,bagID,slotID)
     w:SetAlpha(1); w:Show()
 end
 
+
+local BANK_BLOCK_PADDING = 8
+local BANK_BLOCK_TITLE_HEIGHT = 20
+local BANK_BLOCK_GAP = 8
+local BANK_WINDOW_PADDING = 12
+
+local function AcquireBankCategoryFrame(f,index)
+    f.categoryFrames=f.categoryFrames or {}
+    local block=f.categoryFrames[index]
+    if block then block:Show(); return block end
+    block=CreateFrame("Frame",nil,f,"BackdropTemplate")
+    block:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+    block:SetBackdropColor(.018,.018,.024,.72)
+    block:SetBackdropBorderColor(.13,.13,.17,1)
+    block:SetFrameLevel(f:GetFrameLevel()+2)
+    local titleHandle=CreateFrame("Button",nil,block)
+    titleHandle:SetPoint("TOPLEFT",1,-1)
+    titleHandle:SetPoint("TOPRIGHT",-1,-1)
+    titleHandle:SetHeight(BANK_BLOCK_TITLE_HEIGHT)
+    titleHandle:RegisterForDrag("LeftButton")
+    titleHandle:SetScript("OnDragStart",function(handle)
+        if not SB.db.layout.locked and handle.categoryKey then SB:BeginCategoryOrderDrag(handle.categoryKey) end
+    end)
+    local title=titleHandle:CreateFontString(nil,"OVERLAY","GameFontNormal")
+    title:SetPoint("LEFT",BANK_BLOCK_PADDING-1,0)
+    title:SetTextColor(1,.82,0,1)
+    block.titleHandle=titleHandle
+    block.title=title
+    f.categoryFrames[index]=block
+    return block
+end
+
+local function HideBankCategoryFrames(f,fromIndex)
+    if not f.categoryFrames then return end
+    for i=fromIndex,#f.categoryFrames do f.categoryFrames[i]:Hide() end
+end
+
+local function FirstEmptyBankSlot(displayTabs)
+    for _,bagID in ipairs(displayTabs) do
+        for slotID=1,(C_Container.GetContainerNumSlots(bagID) or 0) do
+            if not C_Container.GetContainerItemInfo(bagID,slotID) then return bagID,slotID end
+        end
+    end
+end
+
+function SB:DropCursorItemIntoBank()
+    if not self.bankAccessOpen or not CursorHasItem() then return false end
+    local mode=self.bankMode or CHARACTER
+    local displayTabs
+    if mode==MATERIALS then
+        displayTabs=MaterialTabIDs()
+    elseif mode==CHARACTER then
+        displayTabs=NormalCharacterTabIDs()
+        if not Layout().separateMaterials then
+            for _,id in ipairs(MaterialTabIDs()) do displayTabs[#displayTabs+1]=id end
+        end
+    else
+        displayTabs=TabIDs(ACCOUNT)
+    end
+    local bagID,slotID=FirstEmptyBankSlot(displayTabs)
+    if not bagID then return false end
+    C_Container.PickupContainerItem(bagID,slotID)
+    return true
+end
+
+local function RefreshCategorizedCharacterBank(self,f,displayTabs,l)
+    local groups={}
+    local live={}
+    for _,bagID in ipairs(displayTabs) do
+        for slotID=1,(C_Container.GetContainerNumSlots(bagID) or 0) do
+            local info=C_Container.GetContainerItemInfo(bagID,slotID)
+            if info and info.itemID then groups[#groups+1]=PhysicalGroup(CHARACTER,bagID,slotID,info) end
+        end
+    end
+
+    local categories=self:BuildCategoryBuckets(groups,true)
+    local requestedCells=math.max(6,math.min(30,math.floor(tonumber(l.cellsPerRow) or 18)))
+    local blocks=math.max(1,math.min(4,math.floor(tonumber(l.blocksPerRow) or 2)))
+    local usableCells=requestedCells-(requestedCells%blocks)
+    local cells=math.max(1,math.floor(usableCells/blocks))
+    local blockWidth=BANK_BLOCK_PADDING*2+cells*self.SLOT_SIZE+math.max(0,cells-1)*self.SLOT_SPACING
+    local scale=math.max(.5,math.min(2,tonumber(l.scale) or 1))
+    local heightLimit=(UIParent:GetHeight() or 768)*.66/scale
+    local startY=70
+    local x=BANK_WINDOW_PADDING
+    local y=startY
+    local maxBottom=startY
+    local maxRight=BANK_WINDOW_PADDING+blockWidth
+    local categoryIndex=0
+    local buttonIndex=0
+
+    local emptyBag,emptySlot=FirstEmptyBankSlot(displayTabs)
+    if #categories==0 and emptyBag then
+        categories={{key="misc",name=self:GetCategoryName("misc"),items={}}}
+    end
+
+    for categoryPos,category in ipairs(categories) do
+        local itemCount=#category.items
+        local addEmpty=(categoryPos==#categories and emptyBag~=nil) and 1 or 0
+        local visualCount=itemCount+addEmpty
+        local rows=math.max(1,math.ceil(math.max(1,visualCount)/cells))
+        local h=BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+rows*self.SLOT_SIZE+math.max(0,rows-1)*self.SLOT_SPACING+BANK_BLOCK_PADDING
+        if y+h+12>heightLimit and y>startY then
+            x=x+blockWidth+BANK_BLOCK_GAP
+            y=startY
+        end
+        categoryIndex=categoryIndex+1
+        local block=AcquireBankCategoryFrame(f,categoryIndex)
+        block.categoryKey=category.noReorder and nil or category.key
+        block.titleHandle.categoryKey=block.categoryKey
+        block.title:SetText(category.name)
+        block:SetSize(blockWidth,h)
+        block:ClearAllPoints(); block:SetPoint("TOPLEFT",f,"TOPLEFT",x,-y)
+
+        for itemIndex,group in ipairs(category.items) do
+            buttonIndex=buttonIndex+1
+            local key=group.key
+            live[key]=true
+            local w=f.bankButtonsBySlot[key]
+            if not w then
+                w=self:CreateBankItemButton(block)
+                w:SetFrameLevel(block:GetFrameLevel()+1)
+                if w.nativeButton then w.nativeButton:SetFrameLevel(w:GetFrameLevel()+1) end
+                f.bankButtonsBySlot[key]=w
+                f.itemButtons[#f.itemButtons+1]=w
+            else w:SetParent(block) end
+            w.disableCategoryDrag=false
+            local col=(itemIndex-1)%cells
+            local row=math.floor((itemIndex-1)/cells)
+            w:ClearAllPoints(); w:SetPoint("TOPLEFT",block,"TOPLEFT",BANK_BLOCK_PADDING+col*(self.SLOT_SIZE+self.SLOT_SPACING),-(BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
+            self:BindItemButton(w,group)
+            local searching=strtrim(self.bankSearchText or "")~=""
+            w:SetAlpha((not searching or self:GroupMatchesSearch(group,self.bankSearchText)) and 1 or .22)
+            w:Show()
+        end
+
+        if addEmpty==1 then
+            local key="empty:"..emptyBag..":"..emptySlot
+            live[key]=true
+            local w=f.bankButtonsBySlot[key]
+            if not w then
+                w=self:CreateBankItemButton(block)
+                w:SetFrameLevel(block:GetFrameLevel()+1)
+                if w.nativeButton then w.nativeButton:SetFrameLevel(w:GetFrameLevel()+1) end
+                f.bankButtonsBySlot[key]=w
+                f.itemButtons[#f.itemButtons+1]=w
+            else w:SetParent(block) end
+            w.disableCategoryDrag=true
+            local itemIndex=itemCount+1
+            local col=(itemIndex-1)%cells
+            local row=math.floor((itemIndex-1)/cells)
+            w:ClearAllPoints(); w:SetPoint("TOPLEFT",block,"TOPLEFT",BANK_BLOCK_PADDING+col*(self.SLOT_SIZE+self.SLOT_SPACING),-(BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
+            ClearPhysicalBankCell(w,emptyBag,emptySlot)
+        end
+
+        y=y+h+BANK_BLOCK_GAP
+        maxBottom=math.max(maxBottom,y)
+        maxRight=math.max(maxRight,x+blockWidth)
+    end
+
+    HideBankCategoryFrames(f,categoryIndex+1)
+    for key,w in pairs(f.bankButtonsBySlot) do if not live[key] then w:Hide() end end
+    f:SetSize(maxRight+BANK_WINDOW_PADDING,math.max(136,maxBottom+20))
+end
+
 function SB:RefreshBankMoney()
     local f=self.bankFrame
     if not f or not f:IsShown() or (self.bankMode or CHARACTER)~=ACCOUNT then return end
@@ -388,6 +647,7 @@ function SB:RefreshBankMoney()
 end
 
 function SB:RefreshBank()
+    if not self.bankAccessOpen then return end
     local f=self:CreateBankFrame()
     local mode=self.bankMode or CHARACTER
     local physicalMode=(mode==MATERIALS) and CHARACTER or mode
@@ -396,6 +656,9 @@ function SB:RefreshBank()
         displayTabs=MaterialTabIDs()
     elseif mode==CHARACTER then
         displayTabs=NormalCharacterTabIDs()
+        if not Layout().separateMaterials then
+            for _,id in ipairs(MaterialTabIDs()) do displayTabs[#displayTabs+1]=id end
+        end
     else
         displayTabs=TabIDs(physicalMode)
     end
@@ -411,6 +674,11 @@ function SB:RefreshBank()
     local l=Layout()
     f:SetScale(math.max(.5,math.min(2,tonumber(l.scale) or 1)))
     f:SetBackdropColor(.025,.025,.032,tonumber(l.backgroundAlpha) or .97)
+
+    if mode==CHARACTER or mode==MATERIALS then
+        RefreshCategorizedCharacterBank(self,f,displayTabs,l)
+    else
+        HideBankCategoryFrames(f,1)
 
     local cells=math.max(6,math.min(30,tonumber(l.cellsPerRow) or 18))
     local visual=0
@@ -460,10 +728,19 @@ function SB:RefreshBank()
 
     local rows=math.max(1,math.ceil(math.max(visual,1)/cells))
     f:SetSize(24+cells*self.SLOT_SIZE+(cells-1)*self.SLOT_SPACING,
-              82+rows*self.SLOT_SIZE+(rows-1)*self.SLOT_SPACING+12)
-    f.charButton:SetEnabled(mode~=CHARACTER)
-    f.materialsViewButton:SetEnabled(mode~=MATERIALS)
-    f.warButton:SetEnabled(mode~=ACCOUNT)
+              82+rows*self.SLOT_SIZE+(rows-1)*self.SLOT_SPACING+24)
+    end
+    local separateMaterials=Layout().separateMaterials and true or false
+    if mode==MATERIALS and not separateMaterials then mode=CHARACTER; self.bankMode=CHARACTER end
+    RefreshBankSlotCounter(f,mode)
+    f.charButton:SetActive(mode==CHARACTER)
+    f.materialsViewButton:SetShown(separateMaterials)
+    f.materialsViewButton:SetActive(mode==MATERIALS)
+    f.materialsViewButton:ClearAllPoints()
+    f.materialsViewButton:SetPoint("LEFT",f.charButton,"RIGHT",5,0)
+    f.warButton:ClearAllPoints()
+    f.warButton:SetPoint("LEFT",separateMaterials and f.materialsViewButton or f.charButton,"RIGHT",5,0)
+    f.warButton:SetActive(mode==ACCOUNT)
 
     local isAccount=mode==ACCOUNT
     local isMaterials=mode==MATERIALS
@@ -493,19 +770,331 @@ function SB:RefreshBank()
         local ok,v=pcall(C_Bank.CanPurchaseBankTab,physicalMode); canBuy=mode~=MATERIALS and ok and v and true or false
     end
     f.purchaseButton:SetShown(canBuy)
+    if not f._wagBankAnchorAttached then self:ApplyStoredBankAnchor() end
+end
+
+
+local SYSTEM_PANEL_GAP=10
+local SYSTEM_PANEL_TOP_OFFSET=80
+local SYSTEM_PANEL_NAMES={"CharacterFrame","DressUpFrame"}
+
+local function ScaleToUIParent(frame)
+    local parentScale=(UIParent and UIParent:GetEffectiveScale()) or 1
+    local frameScale=(frame and frame:GetEffectiveScale()) or parentScale
+    if parentScale==0 then parentScale=1 end
+    return frameScale/parentScale
+end
+
+local function PanelRect(frame)
+    if not frame or not frame:IsShown() then return end
+    local l,r,b,t=frame:GetLeft(),frame:GetRight(),frame:GetBottom(),frame:GetTop()
+    if not l or not r or not b or not t then return end
+    local scale=ScaleToUIParent(frame)
+    return l*scale,r*scale,b*scale,t*scale
+end
+
+local function PanelSize(frame)
+    if not frame then return end
+    local scale=ScaleToUIParent(frame)
+    local width=(frame:GetWidth() or 0)*scale
+    local height=(frame:GetHeight() or 0)*scale
+    if width<=0 or height<=0 then return end
+    return width,height,scale
+end
+
+local function RectsOverlap(aL,aR,aB,aT,bL,bR,bB,bT)
+    return aR>bL and aL<bR and aT>bB and aB<bT
+end
+
+local function AddObstacle(list,frame,except)
+    if not frame or frame==except or not frame:IsShown() then return end
+    local l,r,b,t=PanelRect(frame)
+    if l then list[#list+1]={l,r,b,t} end
+end
+
+local function CaptureSystemPanel(frame)
+    if not frame then return false end
+    if not frame._wagPanelStateSaved then
+        local info=UIPanelWindows and UIPanelWindows[frame:GetName()]
+        if frame:GetAttribute("UIPanelLayout-defined") then
+            frame._wagOriginalPanelArea=frame:GetAttribute("UIPanelLayout-area")
+        else
+            frame._wagOriginalPanelArea=info and info.area or nil
+        end
+        frame._wagOriginalStrata=frame:GetFrameStrata()
+        frame._wagPanelStateSaved=true
+    end
+    return true
+end
+
+local function DetachSystemPanel(frame)
+    if not frame then return false end
+    if frame._wagBankDetached then
+        frame:SetFrameStrata("DIALOG")
+        return true
+    end
+    if type(SetUIPanelAttribute)~="function" or not UIPanelWindows or not UIPanelWindows[frame:GetName()] then return false end
+    CaptureSystemPanel(frame)
+    SetUIPanelAttribute(frame,"area",nil)
+    frame._wagBankDetached=true
+    frame:SetFrameStrata("DIALOG")
+    return true
+end
+
+local function RestoreSystemPanel(frame)
+    if not frame or not frame._wagBankDetached then return end
+    if type(SetUIPanelAttribute)=="function" then
+        SetUIPanelAttribute(frame,"area",frame._wagOriginalPanelArea)
+    end
+    if frame._wagOriginalStrata then frame:SetFrameStrata(frame._wagOriginalStrata) end
+    frame._wagBankDetached=nil
+    frame._wagBankPreferredTop=nil
+    frame._wagOriginalPanelArea=nil
+    frame._wagOriginalStrata=nil
+    frame._wagPanelStateSaved=nil
+end
+
+local function DefaultPanelTop(frame)
+    local screenT=(UIParent:GetTop() or UIParent:GetHeight() or 0)
+    if frame._wagBankPreferredTop then return frame._wagBankPreferredTop end
+    if not frame._wagHadCustomPoint then
+        local _,_,_,top=PanelRect(frame)
+        if top then
+            frame._wagBankPreferredTop=top
+            return top
+        end
+    end
+    frame._wagBankPreferredTop=screenT-SYSTEM_PANEL_TOP_OFFSET
+    return frame._wagBankPreferredTop
+end
+
+local function BuildCandidates(frame,bank,other,ignoreBag)
+    local width,height=PanelSize(frame)
+    if not width then return end
+    local screenL=UIParent:GetLeft() or 0
+    local screenR=UIParent:GetRight() or UIParent:GetWidth()
+    local screenB=UIParent:GetBottom() or 0
+    local screenT=UIParent:GetTop() or UIParent:GetHeight()
+    local obstacles={}
+    AddObstacle(obstacles,bank,frame)
+    if not ignoreBag then AddObstacle(obstacles,SB.mainFrame,frame) end
+    AddObstacle(obstacles,other,frame)
+    local xCandidates={}
+    local function AddX(value)
+        if value then xCandidates[#xCandidates+1]=value end
+    end
+    local bL,bR=PanelRect(bank)
+    if bL then
+        AddX(bR+SYSTEM_PANEL_GAP)
+        AddX(bL-SYSTEM_PANEL_GAP-width)
+    end
+    if SB.mainFrame and SB.mainFrame:IsShown() then
+        local mL,mR=PanelRect(SB.mainFrame)
+        if mL then
+            AddX(mR+SYSTEM_PANEL_GAP)
+            AddX(mL-SYSTEM_PANEL_GAP-width)
+        end
+    end
+    if other and other:IsShown() then
+        local oL,oR=PanelRect(other)
+        if oL then
+            AddX(oR+SYSTEM_PANEL_GAP)
+            AddX(oL-SYSTEM_PANEL_GAP-width)
+        end
+    end
+    AddX(screenL)
+    AddX(screenR-width)
+    local preferredTop=DefaultPanelTop(frame)
+    local yCandidates={preferredTop,screenT-SYSTEM_PANEL_TOP_OFFSET}
+    local _,_,_,bankTop=PanelRect(bank)
+    if bankTop then yCandidates[#yCandidates+1]=bankTop end
+    if other and other:IsShown() then
+        local _,_,_,otherTop=PanelRect(other)
+        if otherTop then yCandidates[#yCandidates+1]=otherTop end
+    end
+    local seen={}
+    for _,topValue in ipairs(yCandidates) do
+        local top=math.min(topValue,screenT)
+        if top-height<screenB then top=screenB+height end
+        for _,leftValue in ipairs(xCandidates) do
+            local left=math.floor(leftValue+0.5)
+            local key=tostring(left)..":"..tostring(math.floor(top+0.5))
+            if not seen[key] then
+                seen[key]=true
+                local right,bottom=left+width,top-height
+                if left>=screenL and right<=screenR and bottom>=screenB and top<=screenT then
+                    local blocked=false
+                    for _,o in ipairs(obstacles) do
+                        if RectsOverlap(left,right,bottom,top,o[1],o[2],o[3],o[4]) then blocked=true break end
+                    end
+                    if not blocked then return left,top end
+                end
+            end
+        end
+    end
+end
+
+local function PlacePanelAt(frame,left,top)
+    if not frame or not left or not top then return false end
+    local _,_,scale=PanelSize(frame)
+    if not scale or scale==0 then return false end
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",left/scale,top/scale)
+    frame._wagHadCustomPoint=true
+    return true
+end
+
+local function PlaceSystemPanel(frame,bank,other,ignoreBag)
+    local left,top=BuildCandidates(frame,bank,other,ignoreBag)
+    if not left then return false end
+    frame:SetFrameStrata("DIALOG")
+    return PlacePanelAt(frame,left,top)
+end
+
+function SB:ArrangeBankSystemPanels(trigger)
+    local bank=self.bankFrame
+    if not self._bankSystemPanelMode or not self.bankAccessOpen or not bank or not bank:IsShown() or not trigger or not trigger:IsShown() or not trigger._wagBankDetached then return end
+    local character=_G.CharacterFrame
+    local dress=_G.DressUpFrame
+    local other
+    if trigger==character then other=dress elseif trigger==dress then other=character else return end
+    trigger:SetFrameStrata("DIALOG")
+    if other and other:IsShown() then
+        if PlaceSystemPanel(trigger,bank,other,false) then return end
+        if PlaceSystemPanel(trigger,bank,other,true) then return end
+        if HideUIPanel then HideUIPanel(other) else other:Hide() end
+    end
+    if PlaceSystemPanel(trigger,bank,nil,false) then return end
+    if PlaceSystemPanel(trigger,bank,nil,true) then return end
+    local width,height,scale=PanelSize(trigger)
+    if not width then return end
+    local screenL=UIParent:GetLeft() or 0
+    local screenR=UIParent:GetRight() or UIParent:GetWidth()
+    local screenB=UIParent:GetBottom() or 0
+    local screenT=UIParent:GetTop() or UIParent:GetHeight()
+    local top=math.min(DefaultPanelTop(trigger),screenT)
+    if top-height<screenB then top=screenB+height end
+    local bankLeft=PanelRect(bank)
+    local left=math.max(screenL,math.min(bankLeft or screenL,screenR-width))
+    PlacePanelAt(trigger,left,top)
+end
+
+function SB:InstallDressUpHooks()
+    for _,name in ipairs(SYSTEM_PANEL_NAMES) do
+        local frame=_G[name]
+        if frame and not frame._wagBankPanelHooked then
+            frame._wagBankPanelHooked=true
+            frame:HookScript("OnShow",function(x)
+                SB._lastSystemPanelShown=x
+                if not SB._bankSystemPanelMode or not SB.bankAccessOpen then
+                    x._wagHadCustomPoint=nil
+                    return
+                end
+                if not x._wagBankDetached then return end
+                SB:ArrangeBankSystemPanels(x)
+            end)
+        end
+        if frame and self._bankSystemPanelMode and not frame._wagBankDetached then
+            local wasShown=frame:IsShown()
+            local _,_,_,top=PanelRect(frame)
+            if top then frame._wagBankPreferredTop=top end
+            if wasShown then
+                if HideUIPanel then HideUIPanel(frame) else frame:Hide() end
+            end
+            if DetachSystemPanel(frame) and wasShown then
+                if ShowUIPanel then ShowUIPanel(frame) else frame:Show() end
+            end
+        end
+    end
+end
+
+function SB:EnterBankSystemPanelMode()
+    if self._bankSystemPanelMode then return end
+    if type(SetUIPanelAttribute)~="function" or type(ShowUIPanel)~="function" or type(HideUIPanel)~="function" then return end
+    self:InstallDressUpHooks()
+    self._bankSystemPanelMode=true
+    local frames={}
+    local shown={}
+    for _,name in ipairs(SYSTEM_PANEL_NAMES) do
+        local frame=_G[name]
+        if frame then
+            frames[#frames+1]=frame
+            CaptureSystemPanel(frame)
+            if frame:IsShown() then
+                shown[frame]=true
+                local _,_,_,top=PanelRect(frame)
+                if top then frame._wagBankPreferredTop=top end
+            end
+        end
+    end
+    for _,frame in ipairs(frames) do
+        if shown[frame] then HideUIPanel(frame) end
+    end
+    for _,frame in ipairs(frames) do DetachSystemPanel(frame) end
+    local character=_G.CharacterFrame
+    local dress=_G.DressUpFrame
+    if shown[character] and shown[dress] then
+        local last=self._lastSystemPanelShown
+        local first=(last==character) and dress or character
+        local second=(last==character) and character or dress
+        ShowUIPanel(first)
+        ShowUIPanel(second)
+    else
+        for _,frame in ipairs(frames) do
+            if shown[frame] then ShowUIPanel(frame) end
+        end
+    end
+end
+
+function SB:ExitBankSystemPanelMode()
+    if not self._bankSystemPanelMode then return end
+    local frames={}
+    local shown={}
+    for _,name in ipairs(SYSTEM_PANEL_NAMES) do
+        local frame=_G[name]
+        if frame then
+            frames[#frames+1]=frame
+            shown[frame]=frame:IsShown()
+        end
+    end
+    self._bankSystemPanelMode=false
+    for _,frame in ipairs(frames) do
+        if shown[frame] then frame:Hide() end
+    end
+    for _,frame in ipairs(frames) do RestoreSystemPanel(frame) end
+    local character=_G.CharacterFrame
+    local dress=_G.DressUpFrame
+    if shown[character] and shown[dress] then
+        local last=self._lastSystemPanelShown
+        local first=(last==character) and dress or character
+        local second=(last==character) and character or dress
+        ShowUIPanel(first)
+        ShowUIPanel(second)
+        if shown[first] then first._wagHadCustomPoint=nil end
+        if shown[second] then second._wagHadCustomPoint=nil end
+    else
+        for _,frame in ipairs(frames) do
+            if shown[frame] then
+                ShowUIPanel(frame)
+                frame._wagHadCustomPoint=nil
+            end
+        end
+    end
 end
 
 function SB:OpenBank()
-    self._nativePurchaseMode=false
     self:SuppressNativeBank()
     self.bankMode=CHARACTER
     local tabs=(self.bankMode==MATERIALS) and MaterialTabIDs() or nil
     SelectBlizzardBank(self.bankMode,tabs and tabs[1])
     self:RefreshBank(); self.bankFrame:Show()
+    if self.EnterBankSystemPanelMode then self:EnterBankSystemPanelMode() end
 end
 function SB:CloseBank()
+    if self.bankPlacementActive then self:FinishBankPlacement() end
     self.bankMode=nil
     if self.bankFrame then self.bankFrame:Hide() end
+    if self.ExitBankSystemPanelMode then self:ExitBankSystemPanelMode() end
 
     C_Timer.After(0, function()
         if SB.bankAccessOpen then return end
@@ -517,6 +1106,93 @@ function SB:CloseBank()
     end)
 end
 function SB:InstallBankHooks() self:SuppressNativeBank() end
+
+function SB:EnsureBankAnchorFrame()
+    if self.bankAnchorFrame then return self.bankAnchorFrame end
+    local anchorFrame=CreateFrame("Frame",nil,UIParent)
+    anchorFrame:SetSize(1,1)
+    anchorFrame:SetScale(1)
+    anchorFrame:EnableMouse(false)
+    self.bankAnchorFrame=anchorFrame
+    return anchorFrame
+end
+
+function SB:GetBankFramePointInUIParent(anchor)
+    local f=self.bankFrame
+    if not f then return nil end
+    anchor=anchor or Layout().anchor or "TOPLEFT"
+    local px=anchor:find("RIGHT") and f:GetRight() or f:GetLeft()
+    local py=anchor:find("TOP") and f:GetTop() or f:GetBottom()
+    if not px or not py then return nil end
+    local frameScale=f:GetEffectiveScale() or 1
+    local parentScale=UIParent:GetEffectiveScale() or 1
+    if parentScale==0 then parentScale=1 end
+    local ratio=frameScale/parentScale
+    return px*ratio,py*ratio
+end
+
+function SB:SetBankAnchorPosition(x,y)
+    if x==nil or y==nil then return end
+    local anchorFrame=self:EnsureBankAnchorFrame()
+    anchorFrame:ClearAllPoints()
+    anchorFrame:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x,y)
+    local l=Layout()
+    l.point="BOTTOMLEFT"
+    l.relativePoint="BOTTOMLEFT"
+    l.x=x
+    l.y=y
+    l.anchorModel=2
+end
+
+function SB:AttachBankFrameToAnchor(anchor)
+    local f=self.bankFrame
+    if not f then return end
+    anchor=anchor or Layout().anchor or "TOPLEFT"
+    local anchorFrame=self:EnsureBankAnchorFrame()
+    f:ClearAllPoints()
+    f:SetPoint(anchor,anchorFrame,"CENTER",0,0)
+    f._wagBankAnchorAttached=true
+end
+
+function SB:ApplyStoredBankAnchor()
+    local f=self.bankFrame
+    if not f then return end
+    local l=Layout()
+    local anchor=l.anchor or "TOPLEFT"
+    if l.anchorModel==2 and l.x~=nil and l.y~=nil then
+        self:SetBankAnchorPosition(l.x,l.y)
+        self:AttachBankFrameToAnchor(anchor)
+        return
+    end
+    local x,y=self:GetBankFramePointInUIParent(anchor)
+    if x~=nil and y~=nil then
+        self:SetBankAnchorPosition(x,y)
+        self:AttachBankFrameToAnchor(anchor)
+    end
+end
+
+function SB:SetBankScale(value)
+    local l=Layout()
+    local newScale=math.max(.5,math.min(2,tonumber(value) or 1))
+    local f=self.bankFrame
+    if not f or not f:IsShown() then l.scale=newScale return end
+    local anchor=l.anchor or "TOPLEFT"
+    local anchorFrame=self:EnsureBankAnchorFrame()
+    local point,relativeTo=f:GetPoint(1)
+    local attached=l.anchorModel==2 and l.x~=nil and l.y~=nil and relativeTo==anchorFrame
+    local x,y
+    if not attached then x,y=self:GetBankFramePointInUIParent(anchor) end
+    l.scale=newScale
+    f:SetScale(newScale)
+    if not attached and x~=nil and y~=nil then
+        self:SetBankAnchorPosition(x,y)
+        self:AttachBankFrameToAnchor(anchor)
+    elseif attached and point~=anchor then
+        self:AttachBankFrameToAnchor(anchor)
+    end
+    if self.bankAccessOpen then self:RefreshBank() end
+end
+
 function SB:ApplyNativeBankAppearance() if self.bankFrame then self:RefreshBank() end end
 
 function SB:ApplyBankAnchor(anchor)
@@ -524,50 +1200,48 @@ function SB:ApplyBankAnchor(anchor)
     if not f or not f:IsShown() then return end
     local l=Layout()
     anchor=anchor or l.anchor or "TOPLEFT"
-    l.anchor=anchor
-
-    local left,top,right,bottom=f:GetLeft(),f:GetTop(),f:GetRight(),f:GetBottom()
-    if not left or not top or not right or not bottom then return end
-    local uiScale=UIParent:GetEffectiveScale()
-    local fScale=f:GetEffectiveScale()
-    f:ClearAllPoints()
-    if anchor=="TOPRIGHT" then
-        local x=(right*fScale-UIParent:GetRight()*uiScale)/uiScale
-        local y=(top*fScale-UIParent:GetTop()*uiScale)/uiScale
-        f:SetPoint("TOPRIGHT",UIParent,"TOPRIGHT",x,y)
-    elseif anchor=="BOTTOMLEFT" then
-        local x=(left*fScale-UIParent:GetLeft()*uiScale)/uiScale
-        local y=(bottom*fScale-UIParent:GetBottom()*uiScale)/uiScale
-        f:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x,y)
-    elseif anchor=="BOTTOMRIGHT" then
-        local x=(right*fScale-UIParent:GetRight()*uiScale)/uiScale
-        local y=(bottom*fScale-UIParent:GetBottom()*uiScale)/uiScale
-        f:SetPoint("BOTTOMRIGHT",UIParent,"BOTTOMRIGHT",x,y)
-    else
-        local x=(left*fScale-UIParent:GetLeft()*uiScale)/uiScale
-        local y=(top*fScale-UIParent:GetTop()*uiScale)/uiScale
-        f:SetPoint("TOPLEFT",UIParent,"TOPLEFT",x,y)
-    end
-    local point,_,relativePoint,x,y=f:GetPoint(1)
-    l.point=point; l.relativePoint=relativePoint; l.x=x; l.y=y
-end
-
-function SB:ToggleBankPlacement()
-    local f=self.bankFrame
-    if not f or not f:IsShown() then
-        self.bankPlacementActive=false
-        self:Print(self:T("OPEN_BANK_TO_MOVE"))
-        self:RefreshBankSettingsValues()
+    local anchorFrame=self:EnsureBankAnchorFrame()
+    local oldAnchor,relativeTo=f:GetPoint(1)
+    local attached=l.anchorModel==2 and l.x~=nil and l.y~=nil and relativeTo==anchorFrame
+    if attached and oldAnchor then
+        if oldAnchor~=anchor then
+            local parentScale=UIParent:GetEffectiveScale() or 1
+            if parentScale==0 then parentScale=1 end
+            local scale=(f:GetEffectiveScale() or parentScale)/parentScale
+            local w=(f:GetWidth() or 0)*scale
+            local h=(f:GetHeight() or 0)*scale
+            local function Offset(a)
+                return a:find("RIGHT") and w or 0,a:find("TOP") and h or 0
+            end
+            local ox,oy=Offset(oldAnchor)
+            local nx,ny=Offset(anchor)
+            self:SetBankAnchorPosition(l.x+(nx-ox),l.y+(ny-oy))
+        end
+        l.anchor=anchor
+        self:AttachBankFrameToAnchor(anchor)
         return
     end
-    local l=Layout()
+    local x,y=self:GetBankFramePointInUIParent(anchor)
+    if x==nil or y==nil then return end
+    l.anchor=anchor
+    self:SetBankAnchorPosition(x,y)
+    self:AttachBankFrameToAnchor(anchor)
+end
+
+
+function SB:ToggleBankPlacement()
+    if not self.bankAccessOpen or not self.bankFrame or not self.bankFrame:IsShown() then
+        self:Print(self:T("OPEN_BANK_TO_MOVE"))
+        return
+    end
+    local f=self.bankFrame
     if self.bankPlacementActive then
-        f:StopMovingOrSizing(); f:SetMovable(false)
+        f:StopMovingOrSizing()
+        self:ApplyBankAnchor(Layout().anchor)
         self.bankPlacementActive=false
         if f.placementMover then f.placementMover:Hide() end
-        self:ApplyBankAnchor(l.anchor)
     else
-        f:SetMovable(true); self.bankPlacementActive=true
+        self.bankPlacementActive=true
         if f.placementMover then f.placementMover:Show() end
     end
     self:RefreshBankSettingsValues()
@@ -577,12 +1251,10 @@ function SB:FinishBankPlacement()
     if not self.bankPlacementActive then return end
     local f=self.bankFrame
     self.bankPlacementActive=false
-    if not f or not f:IsShown() then
-        self:RefreshBankSettingsValues()
-        return
+    if f then
+        f:StopMovingOrSizing()
+        if f:IsShown() then self:ApplyBankAnchor(Layout().anchor) end
+        if f.placementMover then f.placementMover:Hide() end
     end
-    f:StopMovingOrSizing(); f:SetMovable(false)
-    if f.placementMover then f.placementMover:Hide() end
-    self:ApplyBankAnchor(Layout().anchor)
     self:RefreshBankSettingsValues()
 end

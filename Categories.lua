@@ -206,7 +206,7 @@ function SB:SortCategoryGroups(items)
     end)
 end
 
-function SB:BuildCategoryBuckets(groups)
+function SB:BuildCategoryBuckets(groups, showHidden)
     local buckets = {}
 
     for _, group in pairs(groups) do
@@ -259,12 +259,12 @@ function SB:BuildCategoryBuckets(groups)
 
     local hidden = self.db.categories.hidden or {}
     for _, key in ipairs(self.db.categories.order or {}) do
-        if (not hidden[key] or self.categoryDragGroup) and buckets[key] and (#buckets[key] > 0 or self.categoryDragGroup) then
+        if (showHidden or not hidden[key] or self.categoryDragGroup) and buckets[key] and (#buckets[key] > 0 or self.categoryDragGroup) then
             table.insert(result, {
                 key = key,
                 name = self:GetCategoryName(key),
-                items = hidden[key] and self.categoryDragGroup and {} or buckets[key],
-                hiddenDuringDrag = hidden[key] and self.categoryDragGroup and true or nil,
+                items = (not showHidden and hidden[key] and self.categoryDragGroup) and {} or buckets[key],
+                hiddenDuringDrag = (not showHidden and hidden[key] and self.categoryDragGroup) and true or nil,
             })
             seen[key] = true
         end
@@ -272,7 +272,7 @@ function SB:BuildCategoryBuckets(groups)
 
     local remaining = {}
     for key, items in pairs(buckets) do
-        if key ~= "__recent" and not hidden[key] and not seen[key] and #items > 0 then
+        if key ~= "__recent" and (showHidden or not hidden[key]) and not seen[key] and #items > 0 then
             table.insert(remaining, key)
         end
     end

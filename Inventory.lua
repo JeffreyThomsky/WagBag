@@ -197,7 +197,6 @@ function SB:StoreBagScanCache(groups,totalSlots,usedSlots,totalItems,normalTotal
         groups=groups, totalSlots=totalSlots, usedSlots=usedSlots, totalItems=totalItems,
         normalTotal=normalTotal, normalUsed=normalUsed, reagentTotal=reagentTotal, reagentUsed=reagentUsed,
     }
-    self.bagScanRevision = (self.bagScanRevision or 0) + 1
     return self.bagScanCache
 end
 

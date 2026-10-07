@@ -2,7 +2,7 @@ local _, SB = ...
 
 local defaults = {
     layout = { blocksPerRow=2, cellsPerRow=4, scale=1.0, backgroundAlpha=0.97, locked=false, growthAnchor="TOPLEFT", point=nil, relativePoint=nil, x=nil, y=nil },
-    bankLayout = { blocksPerRow=2, cellsPerRow=18, anchor="TOPLEFT", scale=1.0, backgroundAlpha=0.97, locked=false, point=nil, relativePoint=nil, x=nil, y=nil },
+    bankLayout = { blocksPerRow=2, cellsPerRow=18, separateMaterials=false, anchor="TOPLEFT", anchorModel=2, scale=1.0, backgroundAlpha=0.97, locked=false, point=nil, relativePoint=nil, x=nil, y=nil },
     items = { sortMode="default", recentTimerMinutes=0, showQualityBorder=true, itemLevel={enabled=true,fontSize=12}, stackCount={fontSize=12} },
     splitView = { enabled=false },
     currency = { selected={} },
@@ -67,27 +67,6 @@ function SB:GetProfileNames()
     return names
 end
 
-function SB:FindProfileByNickname(text)
-    text=strtrim(text or "")
-    if text=="" then return nil end
-    local lower=text:lower()
-    local exact
-    for _,key in ipairs(self:GetProfileNames()) do
-        if key:lower()==lower then return key end
-        local nick=key:match("^(.-)%s+%-%s+") or key
-        if nick:lower()==lower then exact=exact or key end
-    end
-    return exact
-end
-
-local function FirstProfileName()
-    local names={}
-    for name,profile in pairs(WagBagDB.profiles or {}) do
-        if type(profile)=="table" then names[#names+1]=name end
-    end
-    table.sort(names,function(a,b)return a:lower()<b:lower()end)
-    return names[1]
-end
 
 local function PrepareProfile(profile)
     profile.bagBar=nil
@@ -168,17 +147,13 @@ function SB:ApplyActiveProfile()
     if self.RefreshBags then self:RefreshBags() end
     if self.RefreshCurrencyBar then self:RefreshCurrencyBar() end
 
+    if self.bankFrame then self.bankFrame._wagBankAnchorAttached=nil end
     if self.bankFrame and self.bankFrame:IsShown() then
         if self.ApplyNativeBankAppearance then self:ApplyNativeBankAppearance() end
-        local bank=self.db and self.db.bankLayout
-        if bank and bank.point and bank.relativePoint and bank.x~=nil and bank.y~=nil then
-            self.bankFrame:ClearAllPoints()
-            self.bankFrame:SetPoint(bank.point,UIParent,bank.relativePoint,bank.x,bank.y)
-        end
+        if self.ApplyStoredBankAnchor then self:ApplyStoredBankAnchor() end
     end
     if self.RefreshSettingsValues then self:RefreshSettingsValues() end
     if self.UpdateGrowthAnchorMarker then self:UpdateGrowthAnchorMarker() end
-    if self.UpdateMinimapButtonVisibility then self:UpdateMinimapButtonVisibility() end
 end
 
 function SB:SelectProfile(profileKey)
@@ -191,44 +166,49 @@ function SB:SelectProfile(profileKey)
     return true
 end
 
-function SB:CopyProfileFrom(sourceKey)
-    return self:SelectProfile(sourceKey)
+function SB:ProfileNameExists(name,excludeName)
+    name=strtrim(name or "")
+    if name=="" then return false end
+    local lower=name:lower()
+    for key in pairs((WagBagDB and WagBagDB.profiles) or {}) do
+        if key~=excludeName and key:lower()==lower then return true end
+    end
+    return false
 end
 
-function SB:CreateCharacterProfileCopy(sourceKey)
-    if not WagBagDB or type(WagBagDB.profiles[sourceKey])~="table" then return false,"source" end
-    local targetKey=CharacterKey()
-    if type(WagBagDB.profiles[targetKey])=="table" then return false,"exists",targetKey end
-    local copy=PrepareProfile(DeepCopy(WagBagDB.profiles[sourceKey]))
-    WagBagDB.profiles[targetKey]=copy
-    WagBagDB.profileKeys[targetKey]=targetKey
-    self.profileKey=targetKey
-    self.db=copy
-    self.profilePersisted=true
-    self:ApplyActiveProfile()
-    return true,nil,targetKey
+function SB:CreateProfile(profileName)
+    profileName=strtrim(profileName or "")
+    if profileName=="" then return false,"empty" end
+    if self:ProfileNameExists(profileName) then return false,"exists" end
+    WagBagDB.profiles[profileName]=PrepareProfile(DeepCopy(defaults))
+    return true,nil,profileName
+end
+
+function SB:RenameProfile(oldName,newName)
+    newName=strtrim(newName or "")
+    if oldName=="Default" then return false,"default" end
+    if not WagBagDB or type(WagBagDB.profiles[oldName])~="table" then return false,"source" end
+    if newName=="" then return false,"empty" end
+    if self:ProfileNameExists(newName,oldName) then return false,"exists" end
+    if newName==oldName then return true,nil,newName end
+    WagBagDB.profiles[newName]=WagBagDB.profiles[oldName]
+    WagBagDB.profiles[oldName]=nil
+    for char,key in pairs(WagBagDB.profileKeys or {}) do
+        if key==oldName then WagBagDB.profileKeys[char]=newName end
+    end
+    if self.profileKey==oldName then self.profileKey=newName end
+    return true,nil,newName
 end
 
 function SB:DeleteProfile(profileKey)
     if not WagBagDB or not WagBagDB.profiles or not WagBagDB.profiles[profileKey] then return false end
     if profileKey=="Default" then return false,"default" end
     if profileKey==self.profileKey then return false,"current" end
-
-    local fallback="Default"
-    if fallback==profileKey or type(WagBagDB.profiles[fallback])~="table" then
-        fallback=nil
-        for _,name in ipairs(self:GetProfileNames()) do
-            if name~=profileKey then fallback=name;break end
-        end
-    end
-
-    if not fallback then return false,"last" end
-
     WagBagDB.profiles[profileKey]=nil
-    WagBagDB.defaultProfile=fallback
     for char,key in pairs(WagBagDB.profileKeys or {}) do
-        if key==profileKey then WagBagDB.profileKeys[char]=fallback end
+        if key==profileKey then WagBagDB.profileKeys[char]="Default" end
     end
+    WagBagDB.defaultProfile="Default"
     return true
 end
 
@@ -274,29 +254,15 @@ end
 function SB:ExportProfile()
     return "WAGBAG2:"..HexEncode(Pack(self.db))
 end
-function SB:ImportProfile(text)
+function SB:ImportProfile(text,profileName)
     local ok,value=pcall(DecodeProfileString,text)
     if not ok or type(value)~="table" then return false,"data" end
     if type(value.layout)~="table" or type(value.items)~="table" or type(value.categories)~="table" or type(value.bankLayout)~="table" then return false,"data" end
-    local profileKey=self.profileKey or (WagBagDB and WagBagDB.defaultProfile)
-    if not profileKey or not WagBagDB or type(WagBagDB.profiles)~="table" then return false,"data" end
-    local candidate=DeepCopy(value)
-    PrepareProfile(candidate)
-    local oldProfile=WagBagDB.profiles[profileKey]
-    local oldDB=self.db
-    local applied,err=pcall(function()
-        WagBagDB.profiles[profileKey]=candidate
-        self.db=candidate
-        WagBagDB.profileKeys[CharacterKey()]=profileKey
-        self.profilePersisted=true
-        self:ApplyActiveProfile()
-    end)
-    if not applied then
-        WagBagDB.profiles[profileKey]=oldProfile
-        self.db=oldDB
-        pcall(function() self:ApplyActiveProfile() end)
-        return false,"apply"
-    end
-    return true
+    profileName=strtrim(profileName or CharacterKey())
+    if profileName=="" then return false,"empty" end
+    if self:ProfileNameExists(profileName) then return false,"exists",profileName end
+    local candidate=PrepareProfile(DeepCopy(value))
+    WagBagDB.profiles[profileName]=candidate
+    return true,nil,profileName
 end
 

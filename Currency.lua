@@ -2,10 +2,6 @@ local _, SB = ...
 
 SB.currencyButtons = SB.currencyButtons or {}
 
-local function CurrencyQuantity(info)
-    return tonumber(info and info.quantity) or 0
-end
-
 function SB:GetCharacterCurrencies()
     local result = {}
     local seen = {}

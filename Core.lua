@@ -3,8 +3,7 @@ local ADDON_NAME, SB = ...
 SB = SB or {}
 _G.WagBag = SB
 
-SB.ADDON_NAME = ADDON_NAME
-SB.VERSION="1.0.4"
+SB.VERSION="1.1.7"
 SB.PREFIX = "|cff9b7cff[WagBag]|r"
 
 function SB:Print(message)
@@ -18,10 +17,6 @@ function SB:CreateHeaderCloseButton(parent, onClick)
     end
     return button
 end
-
-SB.state = SB.state or {
-    refreshPending = false,
-}
 
 SLASH_WAGBAG1 = "/wb"
 SLASH_WAGBAG2 = "/wagbag"
@@ -160,7 +155,7 @@ function SB:CheckBagConflict()
 end
 
 function SB:OpenForInteraction()
-    if self.sessionDisabled or not self.mainFrame then return end
+    if not self.mainFrame then return end
     if not self.mainFrame:IsShown() then
         self:BeginBagSession()
         self:RefreshBags()
@@ -171,7 +166,6 @@ function SB:OpenForInteraction()
 end
 
 local eventFrame = CreateFrame("Frame")
-SB.eventFrame = eventFrame
 
 local function RegisterSupportedEvent(eventName)
     local ok, err = pcall(eventFrame.RegisterEvent, eventFrame, eventName)
@@ -182,7 +176,7 @@ local function RegisterSupportedEvent(eventName)
 end
 
 for _, eventName in ipairs({
-    "ADDON_LOADED", "BAG_UPDATE_DELAYED", "PLAYER_REGEN_ENABLED",
+    "ADDON_LOADED", "BAG_UPDATE_DELAYED",
     "GET_ITEM_INFO_RECEIVED", "CURRENCY_DISPLAY_UPDATE", "ACCOUNT_MONEY",
     "UPDATE_BINDINGS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED",
     "MERCHANT_SHOW", "PLAYER_LOGIN", "PLAYERBANKSLOTS_CHANGED", "PLAYERBANKBAGSLOTS_CHANGED",
@@ -238,6 +232,10 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             if SB.InstallBankHooks then SB:InstallBankHooks() end
             return
         end
+        if addonName == "Blizzard_DressUpFrame" or addonName == "Blizzard_CharacterUI" then
+            if SB.InstallDressUpHooks then SB:InstallDressUpHooks() end
+            return
+        end
         if addonName ~= ADDON_NAME then
             return
         end
@@ -252,6 +250,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         SB:InitializeRecentTracking()
         SB:InstallBagHooks()
         if SB.InstallBankHooks then SB:InstallBankHooks() end
+        if SB.InstallDressUpHooks then SB:InstallDressUpHooks() end
 
         SB:Print("Loaded v" .. SB.VERSION)
         SB:Print("Use /wb or /wagbag to open WagBag.")
@@ -266,7 +265,6 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     if event == "CURRENCY_DISPLAY_UPDATE" then
         if SB.mainFrame and SB.mainFrame:IsShown() and SB.RefreshCurrencyBar then
             SB:RefreshCurrencyBar()
-            SB._currencyBarInitialized=true
         end
         if SB.settingsFrame and SB.settingsFrame:IsShown() and SB.RefreshCurrencySettings then
             SB:RefreshCurrencySettings()
@@ -275,11 +273,11 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 
     if event == "PLAYERBANKSLOTS_CHANGED" or event == "PLAYERBANKBAGSLOTS_CHANGED" then
-        if SB.bankFrame and SB.bankFrame:IsShown() and not SB.bankRefreshQueued then
+        if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() and not SB.bankRefreshQueued then
             SB.bankRefreshQueued=true
             C_Timer.After(0.05,function()
                 SB.bankRefreshQueued=false
-                if SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
+                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
             end)
         end
         return
@@ -309,7 +307,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             C_Timer.After(0.05,function()
                 SB.bagRefreshQueued=false
                 if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags() end
-                if SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
+                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
             end)
         end
         return
@@ -338,14 +336,6 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         return
     end
 
-    if event == "PLAYER_REGEN_ENABLED" then
-        if SB.state.refreshPending
-            and SB.mainFrame
-            and SB.mainFrame:IsShown()
-        then
-            SB:RefreshBags()
-        end
-    end
 end)
 
 function SB:HandleSlashCommand(message)
