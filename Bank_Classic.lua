@@ -34,6 +34,10 @@ local function BankBagIDs()
     return ids
 end
 
+function SB:GetTrackedBankTabIDs()
+    return BankBagIDs()
+end
+
 local function BankBagInventorySlot(bagID)
     if C_Container and C_Container.ContainerIDToInventoryID then
         local ok,id=pcall(C_Container.ContainerIDToInventoryID,bagID)
@@ -214,7 +218,7 @@ function SB:CreateBankFrame()
     shield:SetScript("OnMouseDown",function() end)
     shield:SetScript("OnMouseUp",function(_,button)
         if (button=="LeftButton" or button=="RightButton") and CursorHasItem() and SB.bankAccessOpen and not SB.bankPlacementActive then
-            if SB:DropCursorItemIntoBank() then C_Timer.After(0,function() if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end) end
+            if SB:DropCursorItemIntoBank() then C_Timer.After(0,function() if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Bank_Classic.lua:221") end end) end
         end
     end)
     f.mouseShield=shield
@@ -228,9 +232,17 @@ function SB:CreateBankFrame()
     local placeholder=searchBox:CreateFontString(nil,"OVERLAY","GameFontDisableSmall"); placeholder:SetPoint("LEFT",6,0); placeholder:SetText(self:T("SEARCH"))
     local clear=CreateFrame("Button",nil,searchBox); clear:SetSize(14,14); clear:SetPoint("RIGHT",-2,0); clear:SetFrameLevel(searchBox:GetFrameLevel()+1)
     local clearText=clear:CreateFontString(nil,"OVERLAY","GameFontNormal"); clearText:SetPoint("CENTER"); clearText:SetText("×"); clear:Hide()
-    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); SB.bankSearchText=text; if f:IsShown() then SB:RefreshBank() end end)
+    searchBox:SetScript("OnTextChanged",function(box) local text=box:GetText() or ""; placeholder:SetShown(text==""); clear:SetShown(text~=""); if not SB._syncingItemSearch then SB:SetUnifiedItemSearch(text) end end)
     searchBox:SetScript("OnEscapePressed",function(box) box:ClearFocus() end); searchBox:SetScript("OnEnterPressed",function(box) box:ClearFocus() end)
-    clear:SetScript("OnClick",function() searchBox:SetText(""); searchBox:ClearFocus() end); f.searchBox=searchBox
+    clear:SetScript("OnClick",function() searchBox:SetText(""); searchBox:ClearFocus() end); f.searchBox=searchBox; self.bankSearchBox=searchBox
+     
+    if self.searchText and self.searchText ~= "" then
+        self._syncingItemSearch=true
+        searchBox:SetText(self.searchText)
+        self._syncingItemSearch=false
+        placeholder:Hide()
+        clear:Show()
+    end
 
     local close=self:CreateHeaderCloseButton(f,function()
         if _G.CloseBankFrame then _G.CloseBankFrame() elseif f then f:Hide() end
@@ -245,15 +257,50 @@ function SB:CreateBankFrame()
     bags:SetScript("OnClick",function() RefreshBankBagPanel(); f.bankBagPanel:SetShown(not f.bankBagPanel:IsShown()) end)
     bags:SetScript("OnEnter",function(x) GameTooltip:SetOwner(x,"ANCHOR_BOTTOM"); GameTooltip:SetText(SB:T("BAGS")); GameTooltip:Show() end); bags:SetScript("OnLeave",GameTooltip_Hide)
     f.bankBagsButton=bags
+    local modeButton=self:CreateBankModeButton(f)
+    modeButton:SetFrameLevel(contentLevel)
+    modeButton:SetPoint("RIGHT",bags,"LEFT",-4,0)
+    f.bankModeButton=modeButton
 
-    local purchase=CreateFrame("Button",nil,f,"BackdropTemplate"); purchase:SetSize(22,22); purchase:SetFrameLevel(contentLevel); purchase:SetPoint("RIGHT",bags,"LEFT",-4,0); StyleHeaderButton(purchase)
+    local sort=CreateFrame("Button",nil,f,"BackdropTemplate")
+    sort:SetSize(22,22); sort:SetFrameLevel(contentLevel)
+    sort:SetPoint("RIGHT",modeButton,"LEFT",-4,0); StyleHeaderButton(sort)
+    local handle=sort:CreateTexture(nil,"ARTWORK")
+    handle:SetTexture("Interface\\Buttons\\WHITE8X8")
+    handle:SetSize(3,17); handle:SetPoint("CENTER",2,1)
+    handle:SetVertexColor(.72,.45,.16,1); handle:SetRotation(-.58)
+    local head=sort:CreateTexture(nil,"OVERLAY")
+    head:SetTexture("Interface\\Buttons\\WHITE8X8")
+    head:SetSize(10,7); head:SetPoint("CENTER",-4,-5)
+    head:SetVertexColor(1,.78,.05,1); head:SetRotation(-.58)
+     
+     
+     
+    sort:SetScript("OnClick",function()
+        if not SB.bankAccessOpen then return end
+        SB:ClearBankRecent()
+        if SB.ResetBankVisualSlotSession then
+            SB:ResetBankVisualSlotSession("classic")
+        end
+        SB:RefreshBank("Bank_Classic.lua:ClassicBroom")
+    end)
+    sort:SetScript("OnEnter",function(x)
+        GameTooltip:SetOwner(x,"ANCHOR_BOTTOM")
+        GameTooltip:SetText(SB:T("CLEAR_RECENT"))
+        GameTooltip:AddLine(SB:T("CLEAR_RECENT_DESC"),1,1,1,true)
+        GameTooltip:Show()
+    end)
+    sort:SetScript("OnLeave",GameTooltip_Hide)
+    f.sortButton=sort
+
+    local purchase=CreateFrame("Button",nil,f,"BackdropTemplate"); purchase:SetSize(22,22); purchase:SetFrameLevel(contentLevel); purchase:SetPoint("RIGHT",sort,"LEFT",-4,0); StyleHeaderButton(purchase)
     local purchaseIcon=purchase:CreateTexture(nil,"ARTWORK")
     purchaseIcon:SetAllPoints()
     purchaseIcon:SetTexture("Interface\\MoneyFrame\\UI-GoldIcon")
     purchase:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
     purchase:SetScript("OnClick",function()
         if _G.PurchaseSlot then _G.PurchaseSlot() end
-        C_Timer.After(.1,function() if SB.bankFrame and SB.bankFrame:IsShown() then RefreshBankBagPanel(); SB:RefreshBank() end end)
+        C_Timer.After(.1,function() if SB.bankFrame and SB.bankFrame:IsShown() then RefreshBankBagPanel(); SB:RefreshBank("Bank_Classic.lua:294") end end)
     end)
     purchase:SetScript("OnEnter",function(x)
         GameTooltip:SetOwner(x,"ANCHOR_BOTTOM"); GameTooltip:SetText(SB:T("BUY_SLOT"))
@@ -272,7 +319,7 @@ function SB:CreateBankFrame()
     mover:EnableMouse(true); mover:RegisterForDrag("LeftButton"); mover:SetScript("OnDragStart",function() if SB.bankPlacementActive then f:StartMoving() end end); mover:SetScript("OnDragStop",function() f:StopMovingOrSizing() end)
     local mt=mover:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); mt:SetPoint("CENTER"); mt:SetText(self:T("BANK_MOVER")); mt:SetTextColor(1,.82,0,1); mover:Hide(); f.placementMover=mover
 
-    f.itemButtons={}; f.bankButtonsBySlot={}; self.bankFrame=f
+    f.itemButtons={}; f.bankButtonsBySlot={}; f.categoryItemButtons={}; self.bankFrame=f
     return f
 end
 
@@ -303,7 +350,9 @@ local function AcquireBankCategoryFrame(f,index)
     if block then block:Show(); return block end
     block=CreateFrame("Frame",nil,f,"BackdropTemplate")
     block:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-    block:SetBackdropColor(.018,.018,.024,.72); block:SetBackdropBorderColor(.13,.13,.17,1); block:SetFrameLevel(f:GetFrameLevel()+2)
+    block:SetBackdropColor(0,0,0,0); block:SetBackdropBorderColor(0,0,0,0)
+    block._wagBankNoBackdrop = true
+    block:SetFrameLevel(f:GetFrameLevel()+2)
     local titleHandle=CreateFrame("Button",nil,block)
     titleHandle:SetPoint("TOPLEFT",1,-1); titleHandle:SetPoint("TOPRIGHT",-1,-1); titleHandle:SetHeight(BANK_BLOCK_TITLE_HEIGHT); titleHandle:RegisterForDrag("LeftButton")
     titleHandle:SetScript("OnDragStart",function(handle) if not SB.db.layout.locked and handle.categoryKey then SB:BeginCategoryOrderDrag(handle.categoryKey) end end)
@@ -334,9 +383,10 @@ function SB:DropCursorItemIntoBank()
     return true
 end
 
-function SB:RefreshBank()
+function SB:RefreshBank(source)
     if not self.bankAccessOpen then return end
     local f=self:CreateBankFrame(); local l=Layout()
+    if f.bankModeButton then f.bankModeButton:UpdateState() end
     f:SetScale(math.max(.5,math.min(2,tonumber(l.scale) or 1))); f:SetBackdropColor(.025,.025,.032,tonumber(l.backgroundAlpha) or .97)
     local purchased=PurchasedBankBagCount(); local full=false
     if _G.GetNumBankSlots then local _,isFull=GetNumBankSlots(); full=isFull and true or false end
@@ -350,39 +400,106 @@ function SB:RefreshBank()
         end
     end
 
-    local categories=self:BuildCategoryBuckets(groups,true)
+    groups=self:BuildBankDisplayGroups(groups)
+    local categories=self:BuildCategoryBuckets(groups,true,self:BankRecentKeys(groups))
+    if self.ApplyBankVisualSlotSession then
+        self:ApplyBankVisualSlotSession(categories,"classic")
+    end
     local requestedCells=math.max(6,math.min(30,math.floor(tonumber(l.cellsPerRow) or 18)))
     local blocks=math.max(1,math.min(4,math.floor(tonumber(l.blocksPerRow) or 2)))
-    local usableCells=requestedCells-(requestedCells%blocks)
-    if usableCells<blocks then usableCells=blocks end
-    local cells=math.max(1,math.floor(usableCells/blocks))
-    local blockWidth=BANK_BLOCK_PADDING*2+cells*self.SLOT_SIZE+math.max(0,cells-1)*self.SLOT_SPACING
     local scale=math.max(.5,math.min(2,tonumber(l.scale) or 1))
-    local heightLimit=(UIParent:GetHeight() or 768)*.66/scale
-    local startY=48; local x=BANK_WINDOW_PADDING; local y=startY; local maxBottom=startY; local maxRight=BANK_WINDOW_PADDING+blockWidth; local categoryIndex=0
+    local screenWidth=(UIParent:GetWidth() or 1280)/scale
+    local step=self.SLOT_SIZE+self.SLOT_SPACING
+    local maxCells=math.max(1,math.floor((screenWidth-64-2*BANK_BLOCK_PADDING+self.SLOT_SPACING)/step))
+    local cells=math.min(requestedCells,maxCells)
+    local recentColumns=math.min(cells*blocks,maxCells)
+    local startY=48
+    local normalStartY=startY
+    local recentWidth=0
+    local normalLayouts={}
+    local categoryIndex=0
+    local buttonIndex=0
+    for _,category in ipairs(categories) do
+        if category.key=="__recent" then
+            local count=#(category.visualItems or category.items)
+            if count>0 then
+                local rows=math.ceil(count/recentColumns)
+                local height=BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING*2
+                    +rows*self.SLOT_SIZE+math.max(0,rows-1)*self.SLOT_SPACING
+                normalStartY=startY+height+BANK_BLOCK_GAP
+            end
+            break
+        end
+    end
 
     for _,category in ipairs(categories) do
-        local itemCount=#category.items; local rows=math.max(1,math.ceil(math.max(1,itemCount)/cells))
-        local h=BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+rows*self.SLOT_SIZE+math.max(0,rows-1)*self.SLOT_SPACING+BANK_BLOCK_PADDING
-        if y+h+12>heightLimit and y>startY then x=x+blockWidth+BANK_BLOCK_GAP; y=startY end
-        categoryIndex=categoryIndex+1
-        local block=AcquireBankCategoryFrame(f,categoryIndex); block.categoryKey=category.noReorder and nil or category.key; block.titleHandle.categoryKey=block.categoryKey; block.title:SetText(category.name)
-        block:SetSize(blockWidth,h); block:ClearAllPoints(); block:SetPoint("TOPLEFT",f,"TOPLEFT",x,-y)
-        for itemIndex,group in ipairs(category.items) do
-            local key=group.key; live[key]=true; local w=f.bankButtonsBySlot[key]
-            if not w then w=self:CreateBankItemButton(block); w:SetFrameLevel(block:GetFrameLevel()+1); if w.nativeButton then w.nativeButton:SetFrameLevel(w:GetFrameLevel()+1) end; f.bankButtonsBySlot[key]=w; f.itemButtons[#f.itemButtons+1]=w else w:SetParent(block) end
-            BindClassicBankTooltip(w)
-            w.disableCategoryDrag=false
-            local col=(itemIndex-1)%cells; local row=math.floor((itemIndex-1)/cells)
-            w:ClearAllPoints(); w:SetPoint("TOPLEFT",block,"TOPLEFT",BANK_BLOCK_PADDING+col*(self.SLOT_SIZE+self.SLOT_SPACING),-(BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
-            self:BindItemButton(w,group)
-            local searching=strtrim(self.bankSearchText or "")~=""; w:SetAlpha((not searching or self:GroupMatchesSearch(group,self.bankSearchText)) and 1 or .22); w:Show()
+        local displayItems=category.visualItems or category.items
+        local itemCount=#displayItems
+        local pinnedRecent=category.key=="__recent"
+        local renderColumns=pinnedRecent and recentColumns or cells
+        local rows=itemCount>0 and math.ceil(itemCount/renderColumns) or 0
+        local h=BANK_BLOCK_TITLE_HEIGHT+2
+        if rows>0 then
+            h=BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+rows*self.SLOT_SIZE
+              +math.max(0,rows-1)*self.SLOT_SPACING+BANK_BLOCK_PADDING
         end
-        y=y+h+BANK_BLOCK_GAP; maxBottom=math.max(maxBottom,y); maxRight=math.max(maxRight,x+blockWidth)
+        categoryIndex=categoryIndex+1
+        local block=AcquireBankCategoryFrame(f,categoryIndex)
+        block.categoryKey=category.noReorder and nil or category.key
+        block.titleHandle.categoryKey=block.categoryKey
+        block.title:SetText(category.name)
+        local shownCells=math.min(renderColumns,math.max(1,itemCount))
+        local itemsWidth=BANK_BLOCK_PADDING*2+shownCells*self.SLOT_SIZE
+            +math.max(0,shownCells-1)*self.SLOT_SPACING
+        local titleWidth=math.ceil(block.title:GetStringWidth() or 0)+BANK_BLOCK_PADDING*2+4
+        local width=math.max(itemsWidth,titleWidth)
+        block:SetSize(width,h)
+        if pinnedRecent then
+            recentWidth=width
+            block:ClearAllPoints()
+            block:SetPoint("TOPLEFT",f,"TOPLEFT",BANK_WINDOW_PADDING,-startY)
+        else
+            normalLayouts[#normalLayouts+1]={frame=block,width=width,height=h}
+        end
+        for itemIndex,group in ipairs(displayItems) do
+            if group then
+                buttonIndex=buttonIndex+1
+                local w=f.categoryItemButtons[buttonIndex]
+                if not w then
+                    w=self:CreateBankItemButton(block)
+                    w:SetFrameLevel(block:GetFrameLevel()+1)
+                    if w.nativeButton then w.nativeButton:SetFrameLevel(w:GetFrameLevel()+1) end
+                    f.categoryItemButtons[buttonIndex]=w
+                    f.itemButtons[#f.itemButtons+1]=w
+                else w:SetParent(block) end
+                BindClassicBankTooltip(w)
+                w.disableCategoryDrag=false
+                local col=(itemIndex-1)%renderColumns
+                local row=math.floor((itemIndex-1)/renderColumns)
+                w:ClearAllPoints()
+                w:SetPoint("TOPLEFT",block,"TOPLEFT",
+                    BANK_BLOCK_PADDING+col*(self.SLOT_SIZE+self.SLOT_SPACING),
+                    -(BANK_BLOCK_TITLE_HEIGHT+BANK_BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
+                self:BindItemButton(w,group)
+                local searching=strtrim(self.bankSearchText or "")~=""
+                w:SetAlpha((not searching or self:GroupMatchesSearch(group,self.bankSearchText)) and 1 or .22)
+                w:Show()
+            end
+        end
     end
     HideBankCategoryFrames(f,categoryIndex+1)
-    for key,w in pairs(f.bankButtonsBySlot) do if not live[key] then w:Hide() end end
-    f:SetSize(maxRight+BANK_WINDOW_PADDING,math.max(136,maxBottom+20))
+    for i=buttonIndex+1,#f.categoryItemButtons do f.categoryItemButtons[i]:Hide() end
+    local heightLimit=(UIParent:GetHeight() or 768)*.75/scale
+    local availableWidth=math.max(1,screenWidth-2*BANK_WINDOW_PADDING-36)
+    local positions,contentWidth,contentBottom=self:PlanBankCategoryColumns(
+        normalLayouts,blocks,availableWidth,normalStartY,heightLimit-20,BANK_BLOCK_GAP)
+    for _,entry in ipairs(positions) do
+        entry.frame:ClearAllPoints()
+        entry.frame:SetPoint("TOPLEFT",f,"TOPLEFT",entry.x+BANK_WINDOW_PADDING,-entry.y)
+    end
+    contentWidth=math.max(contentWidth,recentWidth)
+    contentBottom=math.max(startY,contentBottom,normalStartY-(normalStartY>startY and BANK_BLOCK_GAP or 0))
+    f:SetSize(math.max(350,contentWidth+BANK_WINDOW_PADDING*2),math.max(136,contentBottom+20))
     if not f._wagBankAnchorAttached then self:ApplyStoredBankAnchor() end
 end
 
@@ -695,9 +812,17 @@ function SB:ExitBankSystemPanelMode()
 end
 
 function SB:OpenBank()
-    self:SuppressNativeBank(); self:RefreshBank(); self.bankFrame:Show(); if self.EnterBankSystemPanelMode then self:EnterBankSystemPanelMode() end
+    if self.ResetBankVisualSlotSession then self:ResetBankVisualSlotSession() end
+    self:SuppressNativeBank(); self:RefreshBank("Bank_Classic.lua:754"); self.bankFrame:Show();
+    if self.BeginBankRecentSession then
+        self:BeginBankRecentSession()
+        self:RefreshBank("Bank_Classic.lua:757")
+    end
+    if self.EnterBankSystemPanelMode then self:EnterBankSystemPanelMode() end
 end
 function SB:CloseBank()
+    if self.CancelBankVisualSort then self:CancelBankVisualSort() end
+    if self.ResetBankVisualSlotSession then self:ResetBankVisualSlotSession() end
     if self.bankFrame then self.bankFrame:Hide(); if self.bankFrame.bankBagPanel then self.bankFrame.bankBagPanel:Hide() end end
     if self.ExitBankSystemPanelMode then self:ExitBankSystemPanelMode() end
 end
@@ -786,10 +911,10 @@ function SB:SetBankScale(value)
     elseif attached and point~=anchor then
         self:AttachBankFrameToAnchor(anchor)
     end
-    self:RefreshBank()
+    self:RefreshBank("Bank_Classic.lua:850")
 end
 
-function SB:ApplyNativeBankAppearance() if self.bankFrame then self:RefreshBank() end end
+function SB:ApplyNativeBankAppearance() if self.bankFrame then self:RefreshBank("Bank_Classic.lua:853") end end
 function SB:RefreshBankMoney() end
 
 function SB:ApplyBankAnchor(anchor)

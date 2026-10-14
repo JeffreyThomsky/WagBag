@@ -8,7 +8,6 @@ local BLOCK_GAP = 8
 
 SB.itemButtons = SB.itemButtons or {}
 SB.categoryFrames = SB.categoryFrames or {}
-SB.dropTargets = SB.dropTargets or {}
 
 local function AcquireCategoryFrame(parent, index)
     local frame = SB.categoryFrames[index]
@@ -23,9 +22,11 @@ local function AcquireCategoryFrame(parent, index)
         edgeFile = "Interface\\Buttons\\WHITE8X8",
         edgeSize = 1,
     })
-    local baseAlpha = tonumber(SB.db and SB.db.layout and SB.db.layout.backgroundAlpha) or 0.97
-    frame:SetBackdropColor(0.035, 0.035, 0.043, math.min(1, baseAlpha + 0.12))
-    frame:SetBackdropBorderColor(0.14, 0.14, 0.17, math.min(1, baseAlpha + 0.28))
+     
+     
+    frame:SetBackdropColor(0, 0, 0, 0)
+    frame:SetBackdropBorderColor(0, 0, 0, 0)
+    frame._wagBankNoBackdrop = true
 
     frame.titleHandle = CreateFrame("Button", nil, frame)
     frame.titleHandle:SetPoint("TOPLEFT", 1, -1)
@@ -45,51 +46,6 @@ local function AcquireCategoryFrame(parent, index)
 
     SB.categoryFrames[index] = frame
     return frame
-end
-
-local function AcquireDropTarget(parent, index)
-    local target = SB.dropTargets[index]
-    if not target then
-        target = CreateFrame("Button", nil, parent, "BackdropTemplate")
-        target:SetSize(SB.SLOT_SIZE, SB.SLOT_SIZE)
-        target:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-        })
-        target:SetBackdropColor(0.05, 0.05, 0.06, 0.42)
-        target:SetBackdropBorderColor(0.18, 0.18, 0.21, 0.9)
-
-        local plus = target:CreateFontString(nil, "OVERLAY", "GameFontDisableLarge")
-        plus:SetPoint("CENTER")
-        plus:SetText("+")
-        target.plus = plus
-
-        target:SetScript("OnEnter", function(t)
-            if SB.categoryDragGroup then
-                t:SetBackdropColor(0.16, 0.13, 0.03, 0.75)
-                t:SetBackdropBorderColor(1, 0.82, 0, 1)
-            end
-        end)
-        target:SetScript("OnLeave", function(t)
-            t:SetBackdropColor(0.05, 0.05, 0.06, 0.42)
-            t:SetBackdropBorderColor(0.18, 0.18, 0.21, 0.9)
-        end)
-        target:SetScript("OnClick", function()
-            if CursorHasItem() then
-                if SB:DropCursorItemIntoBags() then
-                    C_Timer.After(0, function()
-                        if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags() end
-                    end)
-                end
-            end
-        end)
-        SB.dropTargets[index] = target
-    else
-        target:SetParent(parent)
-    end
-    target:Show()
-    return target
 end
 
 function SB:GetActiveCategoryItemIDEditBox()
@@ -197,8 +153,8 @@ function SB:BeginCategoryDrag(group)
                     SB:DropGroupOnCategory(target.categoryKey)
                 else
                     SB:EndCategoryDrag()
-                    SB:RefreshBags()
-                    if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() and (SB.bankMode or 1) ~= 2 then SB:RefreshBank() end
+                    SB:RefreshBags("UI.lua:154")
+                    if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() and (SB.bankMode or 1) ~= 2 then SB:RefreshBank("UI.lua:155") end
                 end
             end
         end)
@@ -206,8 +162,8 @@ function SB:BeginCategoryDrag(group)
     end
     self.categoryDragWatcher:Show()
 
-    self:RefreshBags()
-    if self.bankAccessOpen and self.bankFrame and self.bankFrame:IsShown() and (self.bankMode or 1) ~= 2 then self:RefreshBank() end
+    self:RefreshBags("UI.lua:163")
+    if self.bankAccessOpen and self.bankFrame and self.bankFrame:IsShown() and (self.bankMode or 1) ~= 2 then self:RefreshBank("UI.lua:164") end
 
     self:ResetCategoryDropVisuals()
 end
@@ -220,11 +176,6 @@ function SB:EndCategoryDrag()
     if self.categoryDragGhost then self.categoryDragGhost:Hide() end
     if self.categoryDragWatcher then self.categoryDragWatcher:Hide() end
     self:ResetCategoryDropVisuals()
-    for _, target in ipairs(self.dropTargets) do
-        target:SetBackdropColor(0.05, 0.05, 0.06, 0.42)
-        target:SetBackdropBorderColor(0.18, 0.18, 0.21, 0.9)
-        target.plus:SetTextColor(0.5, 0.5, 0.5, 1)
-    end
 end
 
 function SB:DropGroupOnCategory(categoryKey)
@@ -242,8 +193,8 @@ function SB:DropGroupOnCategory(categoryKey)
     end
 
     self:EndCategoryDrag()
-    self:RefreshBags()
-    if self.bankAccessOpen and self.bankFrame and self.bankFrame:IsShown() and (self.bankMode or 1) ~= 2 then self:RefreshBank() end
+    self:RefreshBags("UI.lua:194")
+    if self.bankAccessOpen and self.bankFrame and self.bankFrame:IsShown() then self:RefreshBank("UI.lua:195") end
     if self.settingsFrame and self.settingsFrame:IsShown() then
         self:RefreshCategorySettings()
     end
@@ -276,7 +227,13 @@ function SB:SwapCategoryOrder(firstKey, secondKey)
 end
 
 function SB:ClearCategoryOrderHighlight()
-    ForEachVisibleCategoryFrame(function(frame) frame:SetBackdropBorderColor(.14,.14,.17,1) end)
+    ForEachVisibleCategoryFrame(function(frame)
+        if frame._wagBankNoBackdrop then
+            frame:SetBackdropBorderColor(0,0,0,0)
+        else
+            frame:SetBackdropBorderColor(.14,.14,.17,1)
+        end
+    end)
 end
 
 function SB:BeginCategoryOrderDrag(categoryKey)
@@ -316,7 +273,12 @@ function SB:BeginCategoryOrderDrag(categoryKey)
                 local target=hovered.categoryKey
                 if SB:SwapCategoryOrder(source,target) then
                     SB.categoryOrderLastSwap=target
-                    SB:RefreshBags()
+                    SB:RefreshBags("UI.lua:268")
+                     
+                     
+                    if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then
+                        SB:RefreshBank("UI.lua:OrderDragSwap")
+                    end
                 end
             elseif not hovered then
                 SB.categoryOrderLastSwap=nil
@@ -328,8 +290,8 @@ function SB:BeginCategoryOrderDrag(categoryKey)
                 SB.categoryOrderLastSwap=nil
                 if SB.categoryOrderGhost then SB.categoryOrderGhost:Hide() end
                 SB:ClearCategoryOrderHighlight()
-                SB:RefreshBags()
-                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() and (SB.bankMode or 1) ~= 2 then SB:RefreshBank() end
+                SB:RefreshBags("UI.lua:280")
+                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("UI.lua:281") end
             end
         end)
         self.categoryOrderWatcher=watcher
@@ -536,7 +498,7 @@ function SB:CreateMainFrame()
     end)
     frame:SetScript("OnMouseUp", function(_,button)
         if (button=="LeftButton" or button=="RightButton") and CursorHasItem() then
-            if self:DropCursorItemIntoBags() then C_Timer.After(0,function() if self.mainFrame and self.mainFrame:IsShown() then self:RefreshBags() end end) end
+            if self:DropCursorItemIntoBags() then C_Timer.After(0,function() if self.mainFrame and self.mainFrame:IsShown() then self:RefreshBags("UI.lua:488") end end) end
         end
     end)
 
@@ -557,21 +519,26 @@ function SB:CreateMainFrame()
     broomBrush:SetVertexColor(1, .78, .05, 1)
     broomBrush:SetRotation(-0.58)
     broomButton:SetScript("OnClick", function()
-        self:ClearRecentItems()
-        self:ResetVisualSlotSession()
-        if self.isMainline and self.db.splitView and self.db.splitView.enabled then
-            if C_Container and C_Container.SortBags then
-                C_Container.SortBags()
-            end
+         
+         
+        if self.isMainline and C_Container and C_Container.SortBags then
+            self:ClearRecentItems()
+            self:ResetVisualSlotSession()
+            self:BeginInventorySortTracking()
+            C_Container.SortBags()
+            self:RefreshBags("UI.lua:516")
             return
         end
+         
+        self:ClearRecentItems()
+        self:ResetVisualSlotSession()
         local groups = self:ScanBags()
         self.inventorySnapshot = self:BuildInventorySnapshot(groups)
-        self:RefreshBags()
+        self:RefreshBags("UI.lua:524")
     end)
     broomButton:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
-        if self.isMainline and self.db.splitView and self.db.splitView.enabled then
+        if self.isMainline and C_Container and C_Container.SortBags then
             GameTooltip:SetText(self:T("SORT_STACKS"))
             GameTooltip:AddLine(self:T("SORT_STACKS_DESC"),1,1,1)
         else
@@ -618,12 +585,12 @@ function SB:CreateMainFrame()
         local text = searchBox:GetText() or ""
         placeholder:SetShown(text == "")
         clearSearch:SetShown(text ~= "")
-        self.searchText = text
-        if frame:IsShown() and not InCombatLockdown() then
-            self:RefreshBags()
+        if not self._syncingItemSearch then
+            self:SetUnifiedItemSearch(text)
         end
     end
 
+    self.mainSearchBox = searchBox
     searchBox:SetScript("OnTextChanged", UpdateSearchState)
     searchBox:SetScript("OnEscapePressed", function(box)
         box:ClearFocus()
@@ -772,7 +739,7 @@ function SB:CreateMainFrame()
         self.inventorySnapshot=self:BuildInventorySnapshot(cache.groups)
 
         UpdateModeVisual()
-        self:RefreshBags()
+        self:RefreshBags("UI.lua:729")
     end)
     modeButton:SetScript("OnEnter",function(button)
         GameTooltip:SetOwner(button,"ANCHOR_BOTTOM")
@@ -794,6 +761,7 @@ function SB:CreateMainFrame()
     frame:Hide()
 
     frame:SetScript("OnHide", function()
+        if self.ResetBagSearchOnToggle then self:ResetBagSearchOnToggle() end
         self:HideBagBar()
         self:EndCategoryDrag()
         self.recentGroupKeys = nil
@@ -813,6 +781,14 @@ function SB:CreateMainFrame()
     self.moneyText = moneyText
 
     self.mainFrame = frame
+    self.tutorialModeAnchor = modeButton
+    self.tutorialBroomAnchor = broomButton
+    frame:HookScript("OnShow", function()
+        if self.TutorialOnBagShown then self:TutorialOnBagShown() end
+    end)
+    frame:HookScript("OnHide", function()
+        if self.StopTutorial then self:StopTutorial() end
+    end)
 
     local growthAnchor=self:GetGrowthAnchor()
     if layout.anchorModel==2 and layout.x~=nil and layout.y~=nil then
@@ -829,9 +805,8 @@ function SB:CreateMainFrame()
     return frame
 end
 
-function SB:RefreshBags()
+function SB:RefreshBags(source)
     if not self.mainFrame then return end
-
 
     self.mainFrame:SetBackdropColor(0.025,0.025,0.032,tonumber(self.db.layout.backgroundAlpha) or 0.97)
 
@@ -860,50 +835,42 @@ function SB:RefreshBags()
     end
     self:RefreshBagBar()
 
-    local bgAlpha=tonumber(self.db.layout.backgroundAlpha) or 0.97
-    local blockAlpha=math.min(1,bgAlpha+0.12)
-    local blockBorderAlpha=math.min(1,bgAlpha+0.28)
+     
+     
     for _,frame in ipairs(self.categoryFrames) do
-        frame:SetBackdropColor(0.035,0.035,0.043,blockAlpha)
-        frame:SetBackdropBorderColor(0.14,0.14,0.17,blockBorderAlpha)
+        frame:SetBackdropColor(0,0,0,0)
+        frame:SetBackdropBorderColor(0,0,0,0)
         frame:Hide()
     end
-    for _,target in ipairs(self.dropTargets) do target:Hide() end
 
     local scale=math.max(0.5,math.min(2.0,tonumber(self.db.layout.scale) or 1.0))
     self.mainFrame:SetScale(scale)
     local cellsPerRow=math.max(2,math.min(10,tonumber(self.db.layout.cellsPerRow) or 4))
     local configuredBlocksPerRow=math.max(1,math.min(4,tonumber(self.db.layout.blocksPerRow) or 2))
     local blocksPerRow=configuredBlocksPerRow
-    local blockWidth=BLOCK_PADDING*2+cellsPerRow*self.SLOT_SIZE+math.max(0,cellsPerRow-1)*self.SLOT_SPACING
     local maxVisualColumns=math.max(configuredBlocksPerRow,3)
     local columnHeightLimit=(UIParent:GetHeight() or 768)*(2/3)/scale
-    local fullWidth=configuredBlocksPerRow*blockWidth+math.max(0,configuredBlocksPerRow-1)*BLOCK_GAP
 
     local buttonIndex=0
     local categoryFrameIndex=0
     local normalIndex=0
     local normalLayouts={}
     local recentHeight=0
-    local recentFrame=nil
-    local recentItemCount=0
+    local recentWidth=0
     local placementY={}
 
-    local function PopulateBlock(block,category,columns,allowDrop)
+    local function PopulateBlock(block,category,columns)
         local displayItems=category.visualItems or category.items
         local itemCount=#displayItems
-        local splitDrop=(self.db.splitView and self.db.splitView.enabled)
-        local showDropTarget=allowDrop and splitDrop and not self.categoryDragGroup
-        local visualCellCount=itemCount+(showDropTarget and 1 or 0)
-        local itemRows
-        local blockHeight
-        if itemCount == 0 and self.categoryDragGroup then
-            itemRows = 0
-            blockHeight = BLOCK_TITLE_HEIGHT + 2
-        else
-            itemRows=math.max(1,math.ceil(math.max(1,visualCellCount)/columns))
+        local itemRows=itemCount>0 and math.ceil(itemCount/columns) or 0
+        local blockHeight=BLOCK_TITLE_HEIGHT+2
+        if itemRows>0 then
             blockHeight=BLOCK_TITLE_HEIGHT+BLOCK_PADDING+itemRows*self.SLOT_SIZE+math.max(0,itemRows-1)*self.SLOT_SPACING+BLOCK_PADDING
         end
+        local shownColumns=math.min(columns,math.max(1,itemCount))
+        local itemsWidth=BLOCK_PADDING*2+shownColumns*self.SLOT_SIZE+math.max(0,shownColumns-1)*self.SLOT_SPACING
+        local titleWidth=math.ceil(block.title:GetStringWidth() or 0)+BLOCK_PADDING*2+4
+        local blockWidth=math.max(itemsWidth,titleWidth)
 
         for itemIndex,group in ipairs(displayItems) do
             if group then
@@ -914,21 +881,11 @@ function SB:RefreshBags()
                 local row=math.floor((itemIndex-1)/columns)
                 button:ClearAllPoints()
                 button:SetPoint("TOPLEFT",block,"TOPLEFT",BLOCK_PADDING+column*(self.SLOT_SIZE+self.SLOT_SPACING),-(BLOCK_TITLE_HEIGHT+BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
-                self:BindItemButton(button,group)
+                self:BindBagItemButton(button,group)
                 button:Show()
             end
         end
-
-        if showDropTarget then
-            local target=AcquireDropTarget(block,categoryFrameIndex)
-            target.categoryKey=category.key
-            local targetIndex=itemCount+1
-            local targetColumn=(targetIndex-1)%columns
-            local targetRow=math.floor((targetIndex-1)/columns)
-            target:ClearAllPoints()
-            target:SetPoint("TOPLEFT",block,"TOPLEFT",BLOCK_PADDING+targetColumn*(self.SLOT_SIZE+self.SLOT_SPACING),-(BLOCK_TITLE_HEIGHT+BLOCK_PADDING+targetRow*(self.SLOT_SIZE+self.SLOT_SPACING)))
-        end
-        return blockHeight
+        return blockHeight,blockWidth
     end
 
     for _,category in ipairs(categories) do
@@ -938,11 +895,9 @@ function SB:RefreshBags()
             block.title:SetText(category.name)
             block.categoryKey=category.key
             block.titleHandle.categoryKey=nil
-            recentItemCount=#(category.visualItems or category.items)
             local fullColumns=math.max(cellsPerRow,cellsPerRow*blocksPerRow)
-            recentHeight=PopulateBlock(block,category,fullColumns,(self.db.splitView and self.db.splitView.enabled))
-            block:SetSize(fullWidth,recentHeight)
-            recentFrame=block
+            recentHeight,recentWidth=PopulateBlock(block,category,fullColumns)
+            block:SetSize(recentWidth,recentHeight)
             block:ClearAllPoints()
             block:SetPoint("TOPLEFT",self.mainFrame,"TOPLEFT",WINDOW_PADDING,-HEADER_HEIGHT)
             break
@@ -957,8 +912,8 @@ function SB:RefreshBags()
             block.title:SetText(category.name)
             block.categoryKey=category.key
             block.titleHandle.categoryKey=category.noReorder and nil or category.key
-            local h=PopulateBlock(block,category,cellsPerRow,true)
-            block:SetSize(blockWidth,h)
+            local h,w=PopulateBlock(block,category,cellsPerRow)
+            block:SetSize(w,h)
             local col=(normalIndex-1)%configuredBlocksPerRow
             local startY=HEADER_HEIGHT+(recentHeight>0 and (recentHeight+BLOCK_GAP) or 0)
             for c=0,maxVisualColumns-1 do
@@ -970,7 +925,7 @@ function SB:RefreshBags()
                     col=col+1
                 end
             end
-            normalLayouts[#normalLayouts+1]={frame=block,column=col,height=h}
+            normalLayouts[#normalLayouts+1]={frame=block,column=col,height=h,width=w}
             placementY[col]=placementY[col]+h+BLOCK_GAP
         end
     end
@@ -979,18 +934,26 @@ function SB:RefreshBags()
     if recentHeight>0 then normalStart=normalStart+recentHeight+BLOCK_GAP end
 
     local columnY={}
+    local columnWidths={}
     for col=0,maxVisualColumns-1 do columnY[col]=normalStart end
+    local highestColumn=-1
+    for _,layout in ipairs(normalLayouts) do
+        local col=layout.column
+        highestColumn=math.max(highestColumn,col)
+        columnWidths[col]=math.max(columnWidths[col] or 0,layout.width)
+    end
+    local columnX={}
+    local nextX=WINDOW_PADDING
+    for col=0,highestColumn do
+        columnX[col]=nextX
+        nextX=nextX+(columnWidths[col] or 0)+BLOCK_GAP
+    end
+    local normalWidth=highestColumn>=0 and (nextX-WINDOW_PADDING-BLOCK_GAP) or 0
 
     for _,layout in ipairs(normalLayouts) do
         local y=columnY[layout.column] or normalStart
         layout.frame:ClearAllPoints()
-        layout.frame:SetPoint(
-            "TOPLEFT",
-            self.mainFrame,
-            "TOPLEFT",
-            WINDOW_PADDING+layout.column*(blockWidth+BLOCK_GAP),
-            -y
-        )
+        layout.frame:SetPoint("TOPLEFT",self.mainFrame,"TOPLEFT",columnX[layout.column],-y)
         columnY[layout.column]=y+layout.height+BLOCK_GAP
     end
 
@@ -999,24 +962,13 @@ function SB:RefreshBags()
     end
 
     local normalCount=#normalLayouts
-    local highestColumn=0
-    for _,layout in ipairs(normalLayouts) do highestColumn=math.max(highestColumn,layout.column) end
-    local visibleColumns=math.max(1,highestColumn+1)
-    if recentHeight>0 and recentItemCount>0 then
-        local recentColumns=math.max(1,math.min(configuredBlocksPerRow,math.ceil(recentItemCount/cellsPerRow)))
-        visibleColumns=math.max(visibleColumns,recentColumns)
-    end
-    local contentWidth=WINDOW_PADDING*2+visibleColumns*blockWidth+math.max(0,visibleColumns-1)*BLOCK_GAP
-    local infoCounterWidth=145
-    local infoMoneyWidth=190
-    local infoGap=12
-    local minimumInfoWidth=WINDOW_PADDING*2+infoCounterWidth+infoGap+infoMoneyWidth
-    local windowWidth=math.max(contentWidth,minimumInfoWidth)
-    if recentFrame then
-        recentFrame:SetWidth(visibleColumns*blockWidth+math.max(0,visibleColumns-1)*BLOCK_GAP)
-    end
-
     self:RefreshCurrencyBar()
+    local infoCounterWidth=math.max(145,self.bagCounter:GetWidth() or 145)
+    local infoMoneyWidth=math.max(190,math.ceil(self.moneyText:GetStringWidth() or 0))
+    local minimumInfoWidth=WINDOW_PADDING*2+infoCounterWidth+12+infoMoneyWidth
+    local currencyWidth=self.currencyBar and self.currencyBar:IsShown() and (self.currencyBar:GetWidth()+WINDOW_PADDING*2) or 0
+    local contentWidth=WINDOW_PADDING*2+math.max(normalWidth,recentWidth)
+    local windowWidth=math.max(contentWidth,minimumInfoWidth,currencyWidth)
     local staticInfoFooter=27
     local currencyFooter=self.currencyBar and self.currencyBar:IsShown() and 23 or 0
     local contentBottom
@@ -1031,18 +983,56 @@ function SB:RefreshBags()
     else contentBottom=HEADER_HEIGHT+self.SLOT_SIZE end
     local windowHeight=WINDOW_PADDING+contentBottom+WINDOW_PADDING+staticInfoFooter+currencyFooter
     self.mainFrame:SetSize(windowWidth,windowHeight)
+    self._bagSearchNeedsRefresh = false
+end
+
+function SB:InstallUnitTooltipLayer()
+    if self.unitTooltipLayerInstalled or not GameTooltip then return end
+    self.unitTooltipLayerInstalled = true
+
+    local tooltip = GameTooltip
+    local originalStrata
+    local lowered = false
+
+    local function RestoreTooltipLayer()
+        if not lowered then return end
+        lowered = false
+        local strata = originalStrata
+        originalStrata = nil
+        if strata then tooltip:SetFrameStrata(strata) end
+    end
+
+    local function LowerUnitTooltip(currentTooltip)
+        if currentTooltip ~= tooltip or not self.mainFrame or not self.mainFrame:IsShown() then return end
+        if not lowered then
+            originalStrata = tooltip:GetFrameStrata()
+            lowered = true
+        end
+        tooltip:SetFrameStrata("MEDIUM")
+    end
+
+    hooksecurefunc(tooltip, "SetOwner", RestoreTooltipLayer)
+    tooltip:HookScript("OnHide", RestoreTooltipLayer)
+    self.mainFrame:HookScript("OnHide", RestoreTooltipLayer)
+
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall
+        and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit then
+        TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, LowerUnitTooltip)
+    elseif tooltip.HasScript and tooltip:HasScript("OnTooltipSetUnit") then
+        tooltip:HookScript("OnTooltipSetUnit", LowerUnitTooltip)
+    end
 end
 
 function SB:ToggleBags()
     if not self.mainFrame then return end
-
     if self.mainFrame:IsShown() then
         self.mainFrame:Hide()
         return
     end
 
+    self:ResetBagSearchOnToggle()
     self:BeginBagSession()
-    self:RefreshBags()
+    self:RefreshBags("UI.lua:1025")
     self.mainFrame:Show()
 end
 

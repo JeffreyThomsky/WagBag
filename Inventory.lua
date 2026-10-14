@@ -12,18 +12,52 @@ local NON_STACKABLE_EQUIP_LOCS = {
     INVTYPE_RANGEDRIGHT = true,
 }
 
+ 
+ 
+ 
+local STATIC_ITEM_CACHE_LIMIT = 512
+function SB:GetStaticItemInfo(itemID)
+    local cache=self._staticItemInfoCache
+    if not cache then cache={}; self._staticItemInfoCache=cache end
+    local entry=cache[itemID]
+    if entry then
+        return entry
+    end
+    local _,_,_,equipLoc,_,classID,subClassID=C_Item.GetItemInfoInstant(itemID)
+    entry={equipLoc=equipLoc,classID=classID,subClassID=subClassID,
+        nonStackable=NON_STACKABLE_EQUIP_LOCS[equipLoc]==true,
+        stackKey="item:"..itemID}
+     
+     
+    if equipLoc~=nil and classID~=nil then
+        if (self._staticItemInfoCount or 0)>=STATIC_ITEM_CACHE_LIMIT then
+            cache={}; self._staticItemInfoCache=cache
+            self._staticItemInfoCount=0
+        end
+        cache[itemID]=entry
+        self._staticItemInfoCount=(self._staticItemInfoCount or 0)+1
+    end
+    return entry
+end
+
+function SB:InvalidateStaticItemInfo(itemID)
+    local cache=self._staticItemInfoCache
+    if not cache or not itemID or not cache[itemID] then return end
+    cache[itemID]=nil
+    self._staticItemInfoCount=math.max(0,(self._staticItemInfoCount or 1)-1)
+end
+
 function SB:IsNonStackableEquipment(itemID)
-    local _, _, _, itemEquipLoc = C_Item.GetItemInfoInstant(itemID)
-    return NON_STACKABLE_EQUIP_LOCS[itemEquipLoc] == true
+    return self:GetStaticItemInfo(itemID).nonStackable
 end
 
 function SB:GetGroupKey(itemID, bagID, slotID)
+    local static=self:GetStaticItemInfo(itemID)
     if (self.db and self.db.splitView and self.db.splitView.enabled)
-        or self:IsNonStackableEquipment(itemID)
-    then
+        or static.nonStackable then
         return "slot:" .. bagID .. ":" .. slotID
     end
-    return "item:" .. itemID
+    return static.stackKey
 end
 
 function SB:FindFirstEmptyCharacterSlot()
@@ -79,8 +113,8 @@ function SB:ScanBags()
                     local groupKey = self:GetGroupKey(itemID, bagID, slotID)
 
                     if not groups[groupKey] then
-                        local _, _, _, itemEquipLoc, _, classID, subClassID =
-                            C_Item.GetItemInfoInstant(itemID)
+                        local static=self:GetStaticItemInfo(itemID)
+                        local itemEquipLoc,classID,subClassID=static.equipLoc,static.classID,static.subClassID
 
                         local itemName = C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
                         if not itemName then
@@ -99,7 +133,7 @@ function SB:ScanBags()
                             itemEquipLoc = itemEquipLoc,
                             classID = classID,
                             subClassID = subClassID,
-                            nonStackableEquipment = self:IsNonStackableEquipment(itemID),
+                            nonStackableEquipment = static.nonStackable,
                             slots = {},
                         }
                     end
@@ -108,11 +142,12 @@ function SB:ScanBags()
                     group.count = group.count + stackCount
                     group.physicalSlots = group.physicalSlots + 1
 
-                    table.insert(group.slots, {
+                    local slots=group.slots
+                    slots[#slots+1] = {
                         bagID = bagID,
                         slotID = slotID,
                         stackCount = stackCount,
-                    })
+                    }
 
                     if not group.itemLink and info.hyperlink then
                         group.itemLink = info.hyperlink
@@ -167,17 +202,6 @@ function SB:GetGroupCurrentItemLevel(group)
     end
 
     return nil
-end
-
-function SB:PrintScan()
-    local groups, totalSlots, usedSlots, totalItems = self:ScanBags()
-    local groupCount = 0
-    for _ in pairs(groups) do groupCount = groupCount + 1 end
-
-    self:Print("Scan complete.")
-    self:Print("Slots: " .. usedSlots .. "/" .. totalSlots
-        .. " | Items: " .. totalItems
-        .. " | Virtual groups: " .. groupCount)
 end
 
 function SB:BuildInventorySnapshot(groups)
@@ -251,7 +275,7 @@ function SB:RefreshTimedRecent(groups)
             local cache = self:ScanAndCacheBags()
             self:RefreshTimedRecent(cache.groups)
             self:ResetVisualSlotSession()
-            self:RefreshBags()
+            self:RefreshBags("Inventory.lua:261")
         end)
     end
 end
@@ -267,17 +291,74 @@ function SB:InitializeRecentTracking()
     end
 end
 
-function SB:TrackInventoryChanges()
+ 
+ 
+function SB:BuildInventoryItemTotals(snapshot)
+    local totals = {}
+    for _, entry in pairs(snapshot or {}) do
+        if entry.itemID then
+            totals[entry.itemID] = (totals[entry.itemID] or 0) + (entry.count or 0)
+        end
+    end
+    return totals
+end
+
+ 
+ 
+ 
+function SB:BeginInventorySortTracking()
+    local snapshot = self.inventorySnapshot or self:BuildInventorySnapshot(self:ScanBags())
+    self.inventorySortTracking = { baseline = snapshot, generation = 0 }
+    self:ScheduleInventorySortSettle()
+end
+
+function SB:ScheduleInventorySortSettle()
+    local tracking = self.inventorySortTracking
+    if not tracking then return end
+    tracking.generation = tracking.generation + 1
+    local generation = tracking.generation
+
+    if not C_Timer or not C_Timer.After then return end
+    C_Timer.After(0.75, function()
+        if self.inventorySortTracking ~= tracking or tracking.generation ~= generation then return end
+        self.inventorySortTracking = nil
+        self:TrackInventoryChanges(tracking.baseline)
+         
+         
+        self:ResetVisualSlotSession()
+        if self.mainFrame and self.mainFrame:IsShown() then
+            self:RefreshBags("Inventory.lua:310")
+        end
+    end)
+end
+
+function SB:TrackInventoryChanges(baseline)
     local cache = self:ScanAndCacheBags()
     local groups = cache.groups
-    local old = self.inventorySnapshot or {}
+
+    if self.inventorySortTracking and not baseline then
+        self:ScheduleInventorySortSettle()
+        return
+    end
+
+     
+     
+     
+    if CursorHasItem and CursorHasItem() then return end
+
+    local old = baseline or self.inventorySnapshot or {}
+    local oldTotals = self:BuildInventoryItemTotals(old)
+    local currentTotals = self:BuildInventoryItemTotals(groups)
+    local gained = {}
+    for itemID, count in pairs(currentTotals) do
+        local increase = count - (oldTotals[itemID] or 0)
+        if increase > 0 then gained[itemID] = increase end
+    end
+
     local minutes = self:GetRecentTimerMinutes()
     local target
-    local store
-
     if minutes > 0 then
-        store = self:GetTimedRecentStore()
-        target = store
+        target = self:GetTimedRecentStore()
     elseif self.mainFrame and self.mainFrame:IsShown() then
         self.recentGroupKeys = self.recentGroupKeys or {}
         target = self.recentGroupKeys
@@ -286,14 +367,32 @@ function SB:TrackInventoryChanges()
         target = self.pendingRecentGroupKeys
     end
 
+     
+     
+     
+    local candidates = {}
     for key, group in pairs(groups) do
         local previous = old[key]
-        if not previous
-            or previous.itemID ~= group.itemID
-            or (group.count or 0) > (previous.count or 0)
-        then
-            if minutes > 0 then target[key] = GetServerTime() + minutes * 60
-            else target[key] = true end
+        local sameItem = previous and previous.itemID == group.itemID
+        local added = (group.count or 0) - (sameItem and (previous.count or 0) or 0)
+        if gained[group.itemID] and added > 0 then
+            candidates[#candidates + 1] = {
+                key = key, itemID = group.itemID, added = added,
+                newSlot = not sameItem,
+            }
+        end
+    end
+    table.sort(candidates, function(a, b)
+        if a.newSlot ~= b.newSlot then return a.newSlot end
+        return a.key < b.key
+    end)
+
+    local expiresAt = minutes > 0 and (GetServerTime() + minutes * 60) or nil
+    for _, candidate in ipairs(candidates) do
+        local remaining = gained[candidate.itemID] or 0
+        if remaining > 0 then
+            if target then target[candidate.key] = expiresAt or true end
+            gained[candidate.itemID] = math.max(0, remaining - candidate.added)
         end
     end
 
@@ -306,6 +405,15 @@ function SB:ResetVisualSlotSession()
 end
 
 function SB:ApplyVisualSlotSession(categories)
+     
+     
+     
+    if self.inventorySortTracking then
+        for _, category in ipairs(categories) do
+            category.visualItems = category.items
+        end
+        return
+    end
     self.visualSlotSession = self.visualSlotSession or {}
 
     for _, category in ipairs(categories) do

@@ -3,7 +3,7 @@ local ADDON_NAME, SB = ...
 SB = SB or {}
 _G.WagBag = SB
 
-SB.VERSION="1.1.7"
+SB.VERSION="1.2.1"
 SB.PREFIX = "|cff9b7cff[WagBag]|r"
 
 function SB:Print(message)
@@ -27,6 +27,38 @@ SlashCmdList["WAGBAG"] = function(message)
     SB:Print("Core initialization stopped before the command handler was ready.")
 end
 
+ 
+ 
+ 
+function SB:BagInteractionKey(frame)
+    if type(frame) == "string" then return frame end
+    if (type(frame) == "table" or type(frame) == "userdata")
+        and type(frame.GetName) == "function" then
+        return frame:GetName() or frame  
+    end
+    return nil
+end
+
+function SB:HideNativeBagFrames()
+    if ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown() then
+        ContainerFrameCombinedBags:Hide()
+    end
+    for i=1,(NUM_CONTAINER_FRAMES or 13) do
+        local frame=_G["ContainerFrame"..i]
+        if frame and frame:IsShown() then frame:Hide() end
+    end
+end
+
+function SB:CloseForInteraction(frame)
+    if not self.mainFrame then return end
+    local key=self:BagInteractionKey(frame)
+    if frame ~= nil and not key then return end
+    if frame == nil or (key and self.bagAutoOwner == key) then
+        self.bagAutoOwner=nil
+        if self.mainFrame:IsShown() then self.mainFrame:Hide() end
+    end
+end
+
 function SB:InstallBagHooks()
     if self.bagHooksInstalled then
         return
@@ -47,18 +79,28 @@ function SB:InstallBagHooks()
     BindCommand("TOGGLEBACKPACK")
     BindCommand("OPENALLBAGS")
 
+     
+     
+    if type(OpenAllBags) == "function" and not self.openAllBagsHookInstalled then
+        hooksecurefunc("OpenAllBags", function(frame)
+            if not UIParent:IsShown() then return end
+            SB:HideNativeBagFrames()
+            SB:OpenForInteraction(frame)
+        end)
+        self.openAllBagsHookInstalled=true
+    end
+    if type(CloseAllBags) == "function" and not self.closeAllBagsHookInstalled then
+        hooksecurefunc("CloseAllBags", function(frame)
+            SB:CloseForInteraction(frame)
+        end)
+        self.closeAllBagsHookInstalled=true
+    end
     if type(ToggleAllBags) == "function" and not self.toggleAllBagsHookInstalled then
         hooksecurefunc("ToggleAllBags", function()
-            if SB._handlingToggleAllBags then return end
+            if SB._handlingToggleAllBags or not UIParent:IsShown() then return end
             SB._handlingToggleAllBags=true
-            if ContainerFrameCombinedBags and ContainerFrameCombinedBags:IsShown() then
-                ContainerFrameCombinedBags:Hide()
-            end
-            for i=1,(NUM_CONTAINER_FRAMES or 13) do
-                local f=_G["ContainerFrame"..i]
-                if f and f:IsShown() then f:Hide() end
-            end
-            SB:ToggleBags()
+            SB:HideNativeBagFrames()
+            SB:ToggleBags()  
             SB._handlingToggleAllBags=false
         end)
         self.toggleAllBagsHookInstalled=true
@@ -154,15 +196,59 @@ function SB:CheckBagConflict()
     StaticPopup_Show("WAGBAG_BAG_CONFLICT",conflictText)
 end
 
-function SB:OpenForInteraction()
+function SB:OpenForInteraction(frame)
     if not self.mainFrame then return end
     if not self.mainFrame:IsShown() then
+         
+         
+        self.bagAutoOwner=self:BagInteractionKey(frame)
+        self:ResetBagSearchOnToggle()
         self:BeginBagSession()
-        self:RefreshBags()
+        self:RefreshBags("Core.lua:162")
         self.mainFrame:Show()
     else
-        self:RefreshBags()
+        self:RefreshBags("Core.lua:165")
     end
+end
+
+ 
+ 
+ 
+function SB:QueueBankRefresh(reason)
+    if not (self.bankAccessOpen and self.bankFrame and self.bankFrame:IsShown()) then return end
+    if self.bankRefreshQueued then return end
+    self.bankRefreshQueued = true
+    local isWarband = self.isMainline and Enum and Enum.BankType
+        and self.bankMode == Enum.BankType.Account
+     
+     
+    C_Timer.After(isWarband and 0.10 or 0.05, function()
+        SB.bankRefreshQueued = false
+        if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then
+            SB:RefreshBank("Core.lua:188")
+        end
+    end)
+end
+
+function SB:EndBankInteraction()
+    local bankVisible = self.bankFrame and self.bankFrame:IsShown()
+    if not self.bankAccessOpen and not bankVisible then return end
+
+    self.bankAccessOpen = false
+    self.bankOpenGeneration = (self.bankOpenGeneration or 0) + 1
+    if bankVisible then self.bankFrame:Hide() end
+    self:CloseForInteraction(_G.BankFrame or "BankFrame")
+    self:CloseBank()
+    if self.EndBankRecentSession then self:EndBankRecentSession() end
+    if self.EndWarbandRecentSession then self:EndWarbandRecentSession() end
+end
+
+local function IsBankInteractionType(interactionType)
+    local types = Enum and Enum.PlayerInteractionType
+    if not types then return false end
+    return (types.Banker ~= nil and interactionType == types.Banker)
+        or (types.CharacterBanker ~= nil and interactionType == types.CharacterBanker)
+        or (types.AccountBanker ~= nil and interactionType == types.AccountBanker)
 end
 
 local eventFrame = CreateFrame("Frame")
@@ -178,8 +264,8 @@ end
 for _, eventName in ipairs({
     "ADDON_LOADED", "BAG_UPDATE_DELAYED",
     "GET_ITEM_INFO_RECEIVED", "CURRENCY_DISPLAY_UPDATE", "ACCOUNT_MONEY",
-    "UPDATE_BINDINGS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED",
-    "MERCHANT_SHOW", "PLAYER_LOGIN", "PLAYERBANKSLOTS_CHANGED", "PLAYERBANKBAGSLOTS_CHANGED",
+    "UPDATE_BINDINGS", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE",
+    "MERCHANT_SHOW", "MERCHANT_CLOSED", "PLAYER_LOGIN", "PLAYERBANKSLOTS_CHANGED", "PLAYERBANKBAGSLOTS_CHANGED",
     "ITEM_LOCK_CHANGED",
 }) do
     RegisterSupportedEvent(eventName)
@@ -196,7 +282,12 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 
     if event == "MERCHANT_SHOW" then
-        SB:OpenForInteraction()
+         
+        SB:OpenForInteraction(_G.MerchantFrame or "MerchantFrame")
+        return
+    end
+    if event == "MERCHANT_CLOSED" then
+        SB:CloseForInteraction(_G.MerchantFrame or "MerchantFrame")
         return
     end
     if event == "BANKFRAME_OPENED" then
@@ -204,7 +295,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         SB.bankAccessOpen = true
         SB.bankOpenGeneration = (SB.bankOpenGeneration or 0) + 1
         local generation = SB.bankOpenGeneration
-        SB:OpenForInteraction()
+        SB:OpenForInteraction(_G.BankFrame or "BankFrame")
 
         if SB.bankFirstOpenSettled then
             if SB.bankAccessOpen and SB.bankOpenGeneration == generation then
@@ -221,9 +312,11 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         return
     end
     if event == "BANKFRAME_CLOSED" then
-        SB.bankAccessOpen = false
-        SB.bankOpenGeneration = (SB.bankOpenGeneration or 0) + 1
-        SB:CloseBank()
+        SB:EndBankInteraction()
+        return
+    end
+    if event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
+        if IsBankInteractionType(...) then SB:EndBankInteraction() end
         return
     end
     if event == "ADDON_LOADED" then
@@ -236,6 +329,11 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             if SB.InstallDressUpHooks then SB:InstallDressUpHooks() end
             return
         end
+        if addonName == "CanIMogIt" then
+            if SB.InvalidateBagButtonCache then SB:InvalidateBagButtonCache() end
+            if SB.bankFrame then SB.bankFrame._warbandAppearance = nil end
+            return
+        end
         if addonName ~= ADDON_NAME then
             return
         end
@@ -245,6 +343,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         SB:SetLocale(SB.localeOverride)
         if SB.RefreshLocalizedCategoryNames then SB:RefreshLocalizedCategoryNames() end
         SB:CreateMainFrame()
+        SB:InstallUnitTooltipLayer()
         SB:CreateSettingsFrame()
         SB:CreateMinimapButton()
         SB:InitializeRecentTracking()
@@ -273,13 +372,13 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 
     if event == "PLAYERBANKSLOTS_CHANGED" or event == "PLAYERBANKBAGSLOTS_CHANGED" then
-        if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() and not SB.bankRefreshQueued then
-            SB.bankRefreshQueued=true
-            C_Timer.After(0.05,function()
-                SB.bankRefreshQueued=false
-                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
-            end)
+        if SB.ExtendBankVisualSort then SB:ExtendBankVisualSort() end
+        if SB.bankMode == ((Enum.BankType and Enum.BankType.Account) or 2) then
+            if SB.QueueWarbandRecentTracking then SB:QueueWarbandRecentTracking() end
+        else
+            if SB.QueueBankRecentTracking then SB:QueueBankRecentTracking() end
         end
+        SB:QueueBankRefresh(event)
         return
     end
 
@@ -295,6 +394,13 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 
     if event == "BAG_UPDATE_DELAYED" then
+        if SB.ExtendBankVisualSort then SB:ExtendBankVisualSort() end
+        if SB.bankMode == ((Enum.BankType and Enum.BankType.Account) or 2) then
+            if SB.QueueWarbandRecentTracking then SB:QueueWarbandRecentTracking() end
+        else
+            if SB.QueueBankRecentTracking then SB:QueueBankRecentTracking() end
+        end
+        SB:QueueBankRefresh(event)
         if SB.loginInventoryBaselinePending then
             SB:InitializeRecentTracking()
             SB.loginInventoryBaselinePending = false
@@ -306,16 +412,20 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             SB.bagRefreshQueued=true
             C_Timer.After(0.05,function()
                 SB.bagRefreshQueued=false
-                if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags() end
-                if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end
+                if SB.mainFrame and SB.mainFrame:IsShown() then
+                    SB:RefreshBags("Core.lua:353")
+                end
             end)
         end
         return
     end
 
     if event == "GET_ITEM_INFO_RECEIVED" then
+        if SB.InvalidateStaticItemInfo then SB:InvalidateStaticItemInfo((...)) end
         SB.bagScanCache=nil
-        if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags() end
+        if SB.InvalidateBagButtonCache then SB:InvalidateBagButtonCache() end
+        SB._bagSearchNeedsRefresh = true
+        if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags("Core.lua:364") end
         if SB.settingsFrame and SB.settingsFrame:IsShown() and SB.settingsFrame.categoriesPage and SB.RefreshCategorySettings then
             SB:RefreshCategorySettings()
         end
@@ -342,10 +452,6 @@ function SB:HandleSlashCommand(message)
 
     message = strtrim(string.lower(message or ""))
 
-    if message == "scan" then
-        SB:PrintScan()
-        return
-    end
 
     local localeArg = message:match("^locale%s*(.-)%s*$")
     if localeArg ~= nil then
@@ -376,16 +482,6 @@ function SB:HandleSlashCommand(message)
         return
     end
 
-    if message == "cats" then
-        local groups = SB:ScanBags()
-        local buckets = SB:BuildCategoryBuckets(groups)
-        SB:Print(SB:T("AUTO_CATEGORIES"))
-        for _, bucket in ipairs(buckets) do
-            SB:Print(SB:T("VIRTUAL_GROUPS", bucket.name, #bucket.items))
-        end
-        return
-    end
-
     if message == "settings" or message == "config" then
         SB:ToggleSettings()
         return
@@ -393,6 +489,5 @@ function SB:HandleSlashCommand(message)
 
     SB:Print(SB:T("COMMANDS"))
     SB:Print(SB:T("CMD_TOGGLE"))
-    SB:Print(SB:T("CMD_SCAN"))
     SB:Print(SB:T("CMD_SETTINGS"))
 end

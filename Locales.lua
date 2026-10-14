@@ -1,13 +1,14 @@
 local _, SB = ...
 
 local RU = {
+    BANK_BLOCKS_AUTO_HINT="Количество блоков может автоматически увеличиться, если банк не помещается по высоте. Предел высоты: 3/4 экрана. Дополнительные колонки создаются только при наличии места по ширине.",
     OK="ОК", CANCEL="Отмена", CLOSE="Закрыть",
 
     RECENT_TIMER="Таймер новых предметов", MINUTES_SHORT="мин",
     SEARCH="Поиск",
     BAG_CONFLICT="WagBag обнаружил другую систему сумок: |cffffd100%s|r.\n\nКакую сумку оставить?", OTHER_BAG="Другую сумку",
     CAT_WEAPON="Оружие", CAT_EQUIPMENT="Экипировка", CAT_CONSUMABLE="Расходуемое",
-    CAT_REAGENT="Реагенты", CAT_RECIPE="Рецепты", CAT_DECOR="Декор для дома", CAT_QUEST="Задания",
+    CAT_ENHANCEMENT="Улучшения", CAT_REAGENT="Реагенты", CAT_RECIPE="Рецепты", CAT_DECOR="Декор для дома", CAT_QUEST="Задания",
     CAT_CONTAINER="Контейнеры", CAT_JUNK="Хлам", CAT_MISC="Разное", CAT_RECENT="Недавно добавленные",
 
     SORT_STACKS="Собрать и отсортировать стаки", SORT_STACKS_DESC="Запускает штатную сортировку сумок Blizzard.",
@@ -45,9 +46,7 @@ local RU = {
     LOCALE_STATUS="Локаль клиента: %s | локаль WagBag: %s%s",
     LOCALE_OVERRIDE=" (override)",
     LOCALE_UNKNOWN="Локаль %s не поддерживается. Доступно: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.",
-    COMMANDS="Команды:", CMD_TOGGLE="/wb - открыть/закрыть WagBag", CMD_SCAN="/wb scan - сканировать текущие сумки", CMD_SETTINGS="/wb settings - открыть/закрыть настройки",
-    AUTO_CATEGORIES="Автоматические категории:", VIRTUAL_GROUPS="%s: %d виртуальных групп",
-
+    COMMANDS="Команды:", CMD_TOGGLE="/wb - открыть/закрыть WagBag", CMD_SETTINGS="/wb settings - открыть/закрыть настройки",
     TAB_PROFILES="Профили",
     PROFILES="ПРОФИЛИ",
     PROFILE_SOURCE="Профиль персонажа",
@@ -74,15 +73,29 @@ local RU = {
     PROFILE_NAME_REQUIRED="Введите имя профиля.",
     PROFILE_DEFAULT_PROTECTED="Профиль Default нельзя переименовать или удалить.",
     PROFILE_EXPORT_TITLE="ЭКСПОРТ ПРОФИЛЯ", PROFILE_EXPORT_HINT="Строка уже выделена. Нажмите Ctrl + C, чтобы скопировать, или Esc для закрытия.",
+    BANK_RECENT_ENABLED="Показывать «Недавно добавленные» в банке", BANK_RECENT_TIMER="Таймер новых предметов банка",
+     
+    TUTORIAL_REPLAY="Повторить обучение",
+    TUTORIAL_TITLE="Знакомство с WagBag",
+    TUTORIAL_STEP_STACKS="Кнопка режимов стаков", TUTORIAL_STEP_CATEGORIES="Заголовок категории", TUTORIAL_STEP_BROOM="Кнопка метлы",
+    TUTORIAL_STACKS="Режимы отображения: общие стаки объединяют одинаковые предметы, раздельные показывают физические стопки. Для работы с каждой стопкой отдельно переключитесь в раздельный режим.",
+    TUTORIAL_CATEGORIES="Чтобы назначить категорию, удерживайте Shift и перетащите предмет на заголовок категории. Сам заголовок можно перетаскивать для изменения порядка.",
+    TUTORIAL_RECENT_RETAIL="Новые предметы появляются в «Недавно добавленных». Метла очищает этот раздел и запускает физическую сортировку Blizzard.",
+    TUTORIAL_RECENT_CLASSIC="Новые предметы появляются в «Недавно добавленных». Метла раскладывает их по категориям без физической сортировки.",
+    TUTORIAL_NEXT="Далее",
+    TUTORIAL_DONE="Готово",
+    TUTORIAL_SKIP="Пропустить",
+
 }
 local EN = {
+    BANK_BLOCKS_AUTO_HINT="More category columns are added automatically if the bank exceeds 3/4 of the screen height, provided there is enough horizontal space.",
     OK="OK", CANCEL="Cancel", CLOSE="Close",
 
     RECENT_TIMER="New item timer", MINUTES_SHORT="min",
     SEARCH="Search",
     BAG_CONFLICT="WagBag detected another bag system: |cffffd100%s|r.\n\nWhich bag system do you want to keep?", OTHER_BAG="Other bag",
     CAT_WEAPON="Weapons", CAT_EQUIPMENT="Equipment", CAT_CONSUMABLE="Consumables",
-    CAT_REAGENT="Reagents", CAT_RECIPE="Recipes", CAT_DECOR="Home Decor", CAT_QUEST="Quests",
+    CAT_ENHANCEMENT="Enhancements", CAT_REAGENT="Reagents", CAT_RECIPE="Recipes", CAT_DECOR="Home Decor", CAT_QUEST="Quests",
     CAT_CONTAINER="Containers", CAT_JUNK="Junk", CAT_MISC="Miscellaneous", CAT_RECENT="Recently added",
 
     SORT_STACKS="Clean up and sort stacks", SORT_STACKS_DESC="Runs Blizzard's standard bag sorting.",
@@ -121,9 +134,7 @@ local EN = {
     LOCALE_STATUS="Client locale: %s | WagBag locale: %s%s",
     LOCALE_OVERRIDE=" (override)",
     LOCALE_UNKNOWN="Locale %s is not supported. Available: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.",
-    COMMANDS="Commands:", CMD_TOGGLE="/wb - open/close WagBag", CMD_SCAN="/wb scan - scan current bags", CMD_SETTINGS="/wb settings - open/close settings",
-    AUTO_CATEGORIES="Automatic categories:", VIRTUAL_GROUPS="%s: %d virtual group(s)",
-
+    COMMANDS="Commands:", CMD_TOGGLE="/wb - open/close WagBag", CMD_SETTINGS="/wb settings - open/close settings",
     TAB_PROFILES="Profiles",
     PROFILES="PROFILES",
     PROFILE_SOURCE="Character profile",
@@ -150,15 +161,29 @@ local EN = {
     PROFILE_NAME_REQUIRED="Enter a profile name.",
     PROFILE_DEFAULT_PROTECTED="The Default profile cannot be renamed or deleted.",
     PROFILE_EXPORT_TITLE="PROFILE EXPORT", PROFILE_EXPORT_HINT="The string is already selected. Press Ctrl + C to copy it, or Esc to close.",
+    BANK_RECENT_ENABLED="Show Recently added in bank", BANK_RECENT_TIMER="Bank new-item timer",
+     
+    TUTORIAL_REPLAY="Replay tutorial",
+    TUTORIAL_TITLE="WagBag basics",
+    TUTORIAL_STEP_STACKS="Stack display button", TUTORIAL_STEP_CATEGORIES="Category heading", TUTORIAL_STEP_BROOM="Broom button",
+    TUTORIAL_STACKS="Merged mode groups identical items; separate mode shows physical stacks. Switch to separate mode when you need to work with each stack individually.",
+    TUTORIAL_CATEGORIES="Hold Shift and drag an item onto a category heading to assign it. Drag a heading itself to reorder categories.",
+    TUTORIAL_RECENT_RETAIL="New items appear in Recently added. The broom clears that section and runs Blizzard’s physical bag sort.",
+    TUTORIAL_RECENT_CLASSIC="New items appear in Recently added. The broom files them into categories without physically sorting bags.",
+    TUTORIAL_NEXT="Next",
+    TUTORIAL_DONE="Done",
+    TUTORIAL_SKIP="Skip",
+
 }
 local DE = {
+    BANK_BLOCKS_AUTO_HINT="Wenn die Bank höher als 3/4 des Bildschirms wird, werden bei genügend Platz automatisch weitere Kategoriespalten hinzugefügt.",
     OK="OK", CANCEL="Abbrechen", CLOSE="Schließen",
 
     RECENT_TIMER="Timer für neue Gegenstände", MINUTES_SHORT="Min.",
     SEARCH="Suche",
     BAG_CONFLICT="WagBag hat ein anderes Taschensystem erkannt: |cffffd100%s|r.\n\nWelches Taschensystem möchtest du verwenden?", OTHER_BAG="Andere Taschen",
     CAT_WEAPON="Waffen", CAT_EQUIPMENT="Ausrüstung", CAT_CONSUMABLE="Verbrauchsgüter",
-    CAT_REAGENT="Reagenzien", CAT_RECIPE="Rezepte", CAT_QUEST="Quests",
+    CAT_ENHANCEMENT="Verbesserungen", CAT_REAGENT="Reagenzien", CAT_RECIPE="Rezepte", CAT_QUEST="Quests",
     CAT_CONTAINER="Behälter", CAT_JUNK="Plunder", CAT_MISC="Verschiedenes", CAT_RECENT="Kürzlich hinzugefügt",
     SORT_STACKS="Stapel aufräumen und sortieren", SORT_STACKS_DESC="Führt die standardmäßige Taschensortierung von Blizzard aus.",
     CLEAR_RECENT="Neue Gegenstände einsortieren", CLEAR_RECENT_DESC="Entfernt Gegenstände aus „Kürzlich hinzugefügt“ und sortiert sie in Kategorien ein.",
@@ -186,9 +211,7 @@ local DE = {
     TAB_BAGS="Taschen", TAB_BANK="Bank", TAB_CURRENCY="Währungen", TAB_CATEGORIES="Kategorien",
     NO_FREE_BAG_SLOT="Kein freier Platz in den normalen Taschen.",
     LOCALE_STATUS="Client-Sprache: %s | WagBag-Sprache: %s%s", LOCALE_OVERRIDE=" (Override)",
-    LOCALE_UNKNOWN="Sprache %s wird nicht unterstützt. Verfügbar: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Befehle:", CMD_TOGGLE="/wb - WagBag öffnen/schließen", CMD_SCAN="/wb scan - aktuelle Taschen scannen", CMD_SETTINGS="/wb settings - Einstellungen öffnen/schließen",
-    AUTO_CATEGORIES="Automatische Kategorien:", VIRTUAL_GROUPS="%s: %d virtuelle Gruppe(n)",
-
+    LOCALE_UNKNOWN="Sprache %s wird nicht unterstützt. Verfügbar: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Befehle:", CMD_TOGGLE="/wb - WagBag öffnen/schließen", CMD_SETTINGS="/wb settings - Einstellungen öffnen/schließen",
     CAT_DECOR="Dekoration",
     HIDE="Ausblenden",
     UNHIDE="Einblenden",
@@ -219,14 +242,28 @@ local DE = {
     PROFILE_NAME_REQUIRED="Profilnamen eingeben.",
     PROFILE_DEFAULT_PROTECTED="Das Profil Default kann nicht umbenannt oder gelöscht werden.",
     PROFILE_EXPORT_TITLE="PROFIL EXPORTIEREN", PROFILE_EXPORT_HINT="Die Zeichenfolge ist bereits markiert. Drücke Strg + C zum Kopieren oder Esc zum Schließen.",
+    BANK_RECENT_ENABLED="Kürzlich hinzugefügt in der Bank anzeigen", BANK_RECENT_TIMER="Bank-Timer für neue Gegenstände",
+     
+    TUTORIAL_REPLAY="Einführung erneut zeigen",
+    TUTORIAL_TITLE="WagBag-Einführung",
+    TUTORIAL_STEP_STACKS="Schaltfläche für Stapelansicht", TUTORIAL_STEP_CATEGORIES="Kategorieüberschrift", TUTORIAL_STEP_BROOM="Besen-Schaltfläche",
+    TUTORIAL_STACKS="Im zusammengefassten Modus werden gleiche Gegenstände gruppiert; im getrennten Modus sieht man einzelne Stapel. Zum Bearbeiten einzelner Stapel den getrennten Modus wählen.",
+    TUTORIAL_CATEGORIES="Umschalt gedrückt halten und einen Gegenstand auf eine Kategorieüberschrift ziehen. Die Überschrift selbst lässt sich zum Sortieren der Kategorien ziehen.",
+    TUTORIAL_RECENT_RETAIL="Neue Gegenstände erscheinen unter „Kürzlich hinzugefügt“. Der Besen leert den Bereich und startet die Blizzard-Taschensortierung.",
+    TUTORIAL_RECENT_CLASSIC="Neue Gegenstände erscheinen unter „Kürzlich hinzugefügt“. Der Besen ordnet sie Kategorien zu, ohne Taschen physisch zu sortieren.",
+    TUTORIAL_NEXT="Weiter",
+    TUTORIAL_DONE="Fertig",
+    TUTORIAL_SKIP="Überspringen",
+
 }
 local FR = {
+    BANK_BLOCKS_AUTO_HINT="Si la banque dépasse les 3/4 de la hauteur de l’écran, des colonnes de catégories sont ajoutées automatiquement si la largeur le permet.",
     OK="OK", CANCEL="Annuler", CLOSE="Fermer",
 
     RECENT_TIMER="Minuteur des nouveaux objets", MINUTES_SHORT="min",
     SEARCH="Recherche",
     BAG_CONFLICT="WagBag a détecté un autre système de sacs : |cffffd100%s|r.\n\nQuel système de sacs voulez-vous conserver ?", OTHER_BAG="Autres sacs",
-    CAT_WEAPON="Armes", CAT_EQUIPMENT="Équipement", CAT_CONSUMABLE="Consommables", CAT_REAGENT="Composants", CAT_RECIPE="Recettes", CAT_QUEST="Quêtes",
+    CAT_WEAPON="Armes", CAT_EQUIPMENT="Équipement", CAT_CONSUMABLE="Consommables", CAT_ENHANCEMENT="Améliorations", CAT_REAGENT="Composants", CAT_RECIPE="Recettes", CAT_QUEST="Quêtes",
     CAT_CONTAINER="Conteneurs", CAT_JUNK="Camelote", CAT_MISC="Divers", CAT_RECENT="Ajoutés récemment",
     SORT_STACKS="Ranger et trier les piles", SORT_STACKS_DESC="Lance le tri standard des sacs de Blizzard.",
     CLEAR_RECENT="Ranger les objets récents", CLEAR_RECENT_DESC="Retire les objets des ajouts récents et les range dans leurs catégories.",
@@ -251,9 +288,7 @@ local FR = {
     WINDOW_ALPHA="Opacité de la fenêtre", BANK_ANCHOR="Ancrage de la banque", LOCK_POSITION="Verrouiller la position",
     TAB_BAGS="Sacs", TAB_BANK="Banque", TAB_CURRENCY="Monnaies", TAB_CATEGORIES="Catégories", NO_FREE_BAG_SLOT="Aucune place libre dans les sacs normaux.",
     LOCALE_STATUS="Langue du client : %s | langue WagBag : %s%s", LOCALE_OVERRIDE=" (forcée)",
-    LOCALE_UNKNOWN="La langue %s n’est pas prise en charge. Disponibles : ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Commandes :", CMD_TOGGLE="/wb - ouvrir/fermer WagBag", CMD_SCAN="/wb scan - analyser les sacs actuels", CMD_SETTINGS="/wb settings - ouvrir/fermer les paramètres",
-    AUTO_CATEGORIES="Catégories automatiques :", VIRTUAL_GROUPS="%s : %d groupe(s) virtuel(s)",
-
+    LOCALE_UNKNOWN="La langue %s n’est pas prise en charge. Disponibles : ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Commandes :", CMD_TOGGLE="/wb - ouvrir/fermer WagBag", CMD_SETTINGS="/wb settings - ouvrir/fermer les paramètres",
     CAT_DECOR="Décorations",
     HIDE="Masquer",
     UNHIDE="Afficher",
@@ -284,14 +319,28 @@ local FR = {
     PROFILE_NAME_REQUIRED="Saisissez un nom de profil.",
     PROFILE_DEFAULT_PROTECTED="Le profil Default ne peut pas être renommé ni supprimé.",
     PROFILE_EXPORT_TITLE="EXPORT DU PROFIL", PROFILE_EXPORT_HINT="La chaîne est déjà sélectionnée. Appuyez sur Ctrl + C pour la copier ou sur Échap pour fermer.",
+    BANK_RECENT_ENABLED="Afficher les ajouts récents dans la banque", BANK_RECENT_TIMER="Minuteur des nouveaux objets en banque",
+     
+    TUTORIAL_REPLAY="Revoir le tutoriel",
+    TUTORIAL_TITLE="Découvrir WagBag",
+    TUTORIAL_STEP_STACKS="Bouton du mode des piles", TUTORIAL_STEP_CATEGORIES="Titre de catégorie", TUTORIAL_STEP_BROOM="Bouton balai",
+    TUTORIAL_STACKS="Le mode groupé rassemble les objets identiques ; le mode séparé affiche chaque pile physique. Utilisez ce dernier pour manipuler les piles individuellement.",
+    TUTORIAL_CATEGORIES="Maintenez Maj et faites glisser un objet sur le titre d’une catégorie pour l’y affecter. Faites glisser un titre pour modifier l’ordre des catégories.",
+    TUTORIAL_RECENT_RETAIL="Les nouveaux objets apparaissent dans « Ajouts récents ». Le balai vide cette section et lance le tri physique de Blizzard.",
+    TUTORIAL_RECENT_CLASSIC="Les nouveaux objets apparaissent dans « Ajouts récents ». Le balai les classe sans trier physiquement les sacs.",
+    TUTORIAL_NEXT="Suivant",
+    TUTORIAL_DONE="Terminer",
+    TUTORIAL_SKIP="Ignorer",
+
 }
 local ES = {
+    BANK_BLOCKS_AUTO_HINT="Si el banco supera 3/4 de la altura de la pantalla, se añaden columnas de categorías automáticamente cuando hay espacio horizontal.",
     OK="Aceptar", CANCEL="Cancelar", CLOSE="Cerrar",
 
     RECENT_TIMER="Temporizador de objetos nuevos", MINUTES_SHORT="min",
     SEARCH="Buscar",
     BAG_CONFLICT="WagBag ha detectado otro sistema de bolsas: |cffffd100%s|r.\n\n¿Qué sistema de bolsas quieres conservar?", OTHER_BAG="Otras bolsas",
-    CAT_WEAPON="Armas", CAT_EQUIPMENT="Equipo", CAT_CONSUMABLE="Consumibles", CAT_REAGENT="Componentes", CAT_RECIPE="Recetas", CAT_QUEST="Misiones",
+    CAT_WEAPON="Armas", CAT_EQUIPMENT="Equipo", CAT_CONSUMABLE="Consumibles", CAT_ENHANCEMENT="Mejoras", CAT_REAGENT="Componentes", CAT_RECIPE="Recetas", CAT_QUEST="Misiones",
     CAT_CONTAINER="Contenedores", CAT_JUNK="Basura", CAT_MISC="Varios", CAT_RECENT="Añadidos recientemente",
     SORT_STACKS="Ordenar y organizar montones", SORT_STACKS_DESC="Ejecuta la ordenación estándar de bolsas de Blizzard.",
     CLEAR_RECENT="Organizar objetos recientes", CLEAR_RECENT_DESC="Quita los objetos de Añadidos recientemente y los coloca en sus categorías.",
@@ -316,9 +365,7 @@ local ES = {
     WINDOW_ALPHA="Opacidad de la ventana", BANK_ANCHOR="Anclaje del banco", LOCK_POSITION="Bloquear posición",
     TAB_BAGS="Bolsas", TAB_BANK="Banco", TAB_CURRENCY="Monedas", TAB_CATEGORIES="Categorías", NO_FREE_BAG_SLOT="No hay espacio libre en las bolsas normales.",
     LOCALE_STATUS="Idioma del cliente: %s | idioma de WagBag: %s%s", LOCALE_OVERRIDE=" (forzado)",
-    LOCALE_UNKNOWN="El idioma %s no es compatible. Disponibles: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/cerrar WagBag", CMD_SCAN="/wb scan - analizar las bolsas actuales", CMD_SETTINGS="/wb settings - abrir/cerrar ajustes",
-    AUTO_CATEGORIES="Categorías automáticas:", VIRTUAL_GROUPS="%s: %d grupo(s) virtual(es)",
-
+    LOCALE_UNKNOWN="El idioma %s no es compatible. Disponibles: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/cerrar WagBag", CMD_SETTINGS="/wb settings - abrir/cerrar ajustes",
     CAT_DECOR="Adornos del hogar",
     HIDE="Ocultar",
     UNHIDE="Mostrar",
@@ -349,14 +396,28 @@ local ES = {
     PROFILE_NAME_REQUIRED="Introduce un nombre de perfil.",
     PROFILE_DEFAULT_PROTECTED="El perfil Default no se puede renombrar ni eliminar.",
     PROFILE_EXPORT_TITLE="EXPORTAR PERFIL", PROFILE_EXPORT_HINT="La cadena ya está seleccionada. Pulsa Ctrl + C para copiarla o Esc para cerrar.",
+    BANK_RECENT_ENABLED="Mostrar añadidos recientemente en el banco", BANK_RECENT_TIMER="Temporizador de objetos nuevos del banco",
+     
+    TUTORIAL_REPLAY="Repetir tutorial",
+    TUTORIAL_TITLE="Introducción a WagBag",
+    TUTORIAL_STEP_STACKS="Botón de modo de montones", TUTORIAL_STEP_CATEGORIES="Título de categoría", TUTORIAL_STEP_BROOM="Botón de escoba",
+    TUTORIAL_STACKS="El modo agrupado reúne objetos idénticos; el modo separado muestra las pilas físicas. Cambia al modo separado para manipular cada pila por separado.",
+    TUTORIAL_CATEGORIES="Mantén Mayús y arrastra un objeto al título de una categoría para asignarlo. Arrastra el título para cambiar el orden de las categorías.",
+    TUTORIAL_RECENT_RETAIL="Los objetos nuevos aparecen en «Añadidos recientemente». La escoba limpia esa sección y ejecuta la ordenación física de Blizzard.",
+    TUTORIAL_RECENT_CLASSIC="Los objetos nuevos aparecen en «Añadidos recientemente». La escoba los distribuye por categorías sin ordenar las bolsas físicamente.",
+    TUTORIAL_NEXT="Siguiente",
+    TUTORIAL_DONE="Listo",
+    TUTORIAL_SKIP="Omitir",
+
 }
 local IT = {
+    BANK_BLOCKS_AUTO_HINT="Se la banca supera i 3/4 dell’altezza dello schermo, vengono aggiunte colonne di categorie automaticamente se c’è spazio.",
     OK="OK", CANCEL="Annulla", CLOSE="Chiudi",
 
     RECENT_TIMER="Timer nuovi oggetti", MINUTES_SHORT="min",
     SEARCH="Cerca",
     BAG_CONFLICT="WagBag ha rilevato un altro sistema di borse: |cffffd100%s|r.\n\nQuale sistema vuoi mantenere?", OTHER_BAG="Altre borse",
-    CAT_WEAPON="Armi", CAT_EQUIPMENT="Equipaggiamento", CAT_CONSUMABLE="Consumabili", CAT_REAGENT="Reagenti", CAT_RECIPE="Ricette", CAT_QUEST="Missioni",
+    CAT_WEAPON="Armi", CAT_EQUIPMENT="Equipaggiamento", CAT_CONSUMABLE="Consumabili", CAT_ENHANCEMENT="Potenziamenti", CAT_REAGENT="Reagenti", CAT_RECIPE="Ricette", CAT_QUEST="Missioni",
     CAT_CONTAINER="Contenitori", CAT_JUNK="Cianfrusaglie", CAT_MISC="Varie", CAT_RECENT="Aggiunti di recente",
     SORT_STACKS="Riordina e sistema le pile", SORT_STACKS_DESC="Esegue l'ordinamento standard delle borse di Blizzard.",
     CLEAR_RECENT="Sistema gli oggetti recenti", CLEAR_RECENT_DESC="Rimuove gli oggetti da Aggiunti di recente e li sistema nelle categorie.",
@@ -381,9 +442,7 @@ local IT = {
     WINDOW_ALPHA="Opacità finestra", BANK_ANCHOR="Ancoraggio banca", LOCK_POSITION="Blocca posizione",
     TAB_BAGS="Borse", TAB_BANK="Banca", TAB_CURRENCY="Valute", TAB_CATEGORIES="Categorie", NO_FREE_BAG_SLOT="Nessuno spazio libero nelle borse normali.",
     LOCALE_STATUS="Lingua client: %s | lingua WagBag: %s%s", LOCALE_OVERRIDE=" (override)",
-    LOCALE_UNKNOWN="La lingua %s non è supportata. Disponibili: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandi:", CMD_TOGGLE="/wb - apri/chiudi WagBag", CMD_SCAN="/wb scan - analizza le borse attuali", CMD_SETTINGS="/wb settings - apri/chiudi impostazioni",
-    AUTO_CATEGORIES="Categorie automatiche:", VIRTUAL_GROUPS="%s: %d gruppo/i virtuale/i",
-
+    LOCALE_UNKNOWN="La lingua %s non è supportata. Disponibili: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandi:", CMD_TOGGLE="/wb - apri/chiudi WagBag", CMD_SETTINGS="/wb settings - apri/chiudi impostazioni",
     CAT_DECOR="Decorazioni",
     HIDE="Nascondi",
     UNHIDE="Mostra",
@@ -414,14 +473,28 @@ local IT = {
     PROFILE_NAME_REQUIRED="Inserisci un nome per il profilo.",
     PROFILE_DEFAULT_PROTECTED="Il profilo Default non può essere rinominato o eliminato.",
     PROFILE_EXPORT_TITLE="ESPORTA PROFILO", PROFILE_EXPORT_HINT="La stringa è già selezionata. Premi Ctrl + C per copiarla oppure Esc per chiudere.",
+    BANK_RECENT_ENABLED="Mostra aggiunti di recente in banca", BANK_RECENT_TIMER="Timer nuovi oggetti della banca",
+     
+    TUTORIAL_REPLAY="Ripeti tutorial",
+    TUTORIAL_TITLE="Guida a WagBag",
+    TUTORIAL_STEP_STACKS="Pulsante modalità pile", TUTORIAL_STEP_CATEGORIES="Titolo della categoria", TUTORIAL_STEP_BROOM="Pulsante scopa",
+    TUTORIAL_STACKS="La modalità unita raggruppa gli oggetti identici; quella separata mostra le pile fisiche. Usa la modalità separata per gestire ogni pila singolarmente.",
+    TUTORIAL_CATEGORIES="Tieni premuto Maiusc e trascina un oggetto sul titolo di una categoria per assegnarlo. Trascina il titolo per riordinare le categorie.",
+    TUTORIAL_RECENT_RETAIL="I nuovi oggetti appaiono in «Aggiunti di recente». La scopa svuota la sezione e avvia l’ordinamento fisico di Blizzard.",
+    TUTORIAL_RECENT_CLASSIC="I nuovi oggetti appaiono in «Aggiunti di recente». La scopa li assegna alle categorie senza ordinare fisicamente le borse.",
+    TUTORIAL_NEXT="Avanti",
+    TUTORIAL_DONE="Fine",
+    TUTORIAL_SKIP="Salta",
+
 }
 local PT = {
+    BANK_BLOCKS_AUTO_HINT="Se o banco ultrapassar 3/4 da altura da tela, mais colunas de categorias serão adicionadas automaticamente se houver espaço.",
     OK="OK", CANCEL="Cancelar", CLOSE="Fechar",
 
     RECENT_TIMER="Temporizador de itens novos", MINUTES_SHORT="min",
     SEARCH="Buscar",
     BAG_CONFLICT="O WagBag detectou outro sistema de bolsas: |cffffd100%s|r.\n\nQual sistema de bolsas você quer manter?", OTHER_BAG="Outras bolsas",
-    CAT_WEAPON="Armas", CAT_EQUIPMENT="Equipamento", CAT_CONSUMABLE="Consumíveis", CAT_REAGENT="Reagentes", CAT_RECIPE="Receitas", CAT_QUEST="Missões",
+    CAT_WEAPON="Armas", CAT_EQUIPMENT="Equipamento", CAT_CONSUMABLE="Consumíveis", CAT_ENHANCEMENT="Aprimoramentos", CAT_REAGENT="Reagentes", CAT_RECIPE="Receitas", CAT_QUEST="Missões",
     CAT_CONTAINER="Recipientes", CAT_JUNK="Sucata", CAT_MISC="Diversos", CAT_RECENT="Adicionados recentemente",
     SORT_STACKS="Organizar e ordenar pilhas", SORT_STACKS_DESC="Executa a ordenação padrão de bolsas da Blizzard.",
     CLEAR_RECENT="Organizar itens recentes", CLEAR_RECENT_DESC="Remove os itens de Adicionados recentemente e os organiza nas categorias.",
@@ -446,9 +519,7 @@ local PT = {
     WINDOW_ALPHA="Opacidade da janela", BANK_ANCHOR="Âncora do banco", LOCK_POSITION="Bloquear posição",
     TAB_BAGS="Bolsas", TAB_BANK="Banco", TAB_CURRENCY="Moedas", TAB_CATEGORIES="Categorias", NO_FREE_BAG_SLOT="Não há espaço livre nas bolsas normais.",
     LOCALE_STATUS="Idioma do cliente: %s | idioma do WagBag: %s%s", LOCALE_OVERRIDE=" (override)",
-    LOCALE_UNKNOWN="O idioma %s não é compatível. Disponíveis: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/fechar WagBag", CMD_SCAN="/wb scan - verificar bolsas atuais", CMD_SETTINGS="/wb settings - abrir/fechar configurações",
-    AUTO_CATEGORIES="Categorias automáticas:", VIRTUAL_GROUPS="%s: %d grupo(s) virtual(is)",
-
+    LOCALE_UNKNOWN="O idioma %s não é compatível. Disponíveis: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.", COMMANDS="Comandos:", CMD_TOGGLE="/wb - abrir/fechar WagBag", CMD_SETTINGS="/wb settings - abrir/fechar configurações",
     CAT_DECOR="Decoração de Moradia",
     HIDE="Ocultar",
     UNHIDE="Mostrar",
@@ -479,8 +550,22 @@ local PT = {
     PROFILE_NAME_REQUIRED="Digite um nome de perfil.",
     PROFILE_DEFAULT_PROTECTED="O perfil Default não pode ser renomeado nem excluído.",
     PROFILE_EXPORT_TITLE="EXPORTAR PERFIL", PROFILE_EXPORT_HINT="A string já está selecionada. Pressione Ctrl + C para copiar ou Esc para fechar.",
+    BANK_RECENT_ENABLED="Mostrar adicionados recentemente no banco", BANK_RECENT_TIMER="Temporizador de novos itens do banco",
+     
+    TUTORIAL_REPLAY="Repetir tutorial",
+    TUTORIAL_TITLE="Introdução ao WagBag",
+    TUTORIAL_STEP_STACKS="Botão de modo de pilhas", TUTORIAL_STEP_CATEGORIES="Título da categoria", TUTORIAL_STEP_BROOM="Botão da vassoura",
+    TUTORIAL_STACKS="O modo agrupado reúne itens iguais; o modo separado mostra as pilhas físicas. Use o modo separado para manipular cada pilha individualmente.",
+    TUTORIAL_CATEGORIES="Segure Shift e arraste um item até o título de uma categoria para atribuí-lo. Arraste o título para reorganizar as categorias.",
+    TUTORIAL_RECENT_RETAIL="Itens novos aparecem em «Adicionados recentemente». A vassoura limpa a seção e inicia a organização física da Blizzard.",
+    TUTORIAL_RECENT_CLASSIC="Itens novos aparecem em «Adicionados recentemente». A vassoura os coloca nas categorias sem organizar fisicamente as bolsas.",
+    TUTORIAL_NEXT="Próximo",
+    TUTORIAL_DONE="Concluir",
+    TUTORIAL_SKIP="Pular",
+
 }
 local KO = {
+    BANK_BLOCKS_AUTO_HINT="은행 창이 화면 높이의 3/4을 넘으면 가로 공간이 있을 때 범주 열이 자동으로 추가됩니다.",
     OK="확인", CANCEL="취소", CLOSE="닫기",
 
     RECENT_TIMER="새 아이템 타이머", MINUTES_SHORT="분",
@@ -490,7 +575,7 @@ local KO = {
     CAT_WEAPON="무기",
     CAT_EQUIPMENT="장비",
     CAT_CONSUMABLE="소모품",
-    CAT_REAGENT="재료",
+    CAT_ENHANCEMENT="아이템 강화", CAT_REAGENT="재료",
     CAT_RECIPE="조리법",
     CAT_QUEST="퀘스트",
     CAT_CONTAINER="보관함",
@@ -572,11 +657,7 @@ local KO = {
     LOCALE_UNKNOWN="%s 언어는 지원되지 않습니다. 사용 가능: ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto.",
     COMMANDS="명령어:",
     CMD_TOGGLE="/wb - WagBag 열기/닫기",
-    CMD_SCAN="/wb scan - 현재 가방 검색",
     CMD_SETTINGS="/wb settings - 설정 열기/닫기",
-    AUTO_CATEGORIES="자동 분류:",
-    VIRTUAL_GROUPS="%s: 가상 그룹 %d개",
-
     CAT_DECOR="하우징 장식",
     HIDE="숨기기",
     UNHIDE="표시",
@@ -607,8 +688,22 @@ local KO = {
     PROFILE_NAME_REQUIRED="프로필 이름을 입력하세요.",
     PROFILE_DEFAULT_PROTECTED="Default 프로필은 이름을 변경하거나 삭제할 수 없습니다.",
     PROFILE_EXPORT_TITLE="프로필 내보내기", PROFILE_EXPORT_HINT="문자열이 이미 선택되어 있습니다. Ctrl + C로 복사하거나 Esc로 닫으세요.",
+    BANK_RECENT_ENABLED="은행에서 최근 추가 항목 표시", BANK_RECENT_TIMER="은행 새 아이템 타이머",
+     
+    TUTORIAL_REPLAY="튜토리얼 다시 보기",
+    TUTORIAL_TITLE="WagBag 사용 안내",
+    TUTORIAL_STEP_STACKS="묶음 표시 버튼", TUTORIAL_STEP_CATEGORIES="범주 제목", TUTORIAL_STEP_BROOM="빗자루 버튼",
+    TUTORIAL_STACKS="묶음 모드는 같은 아이템을 하나로 표시하고 분리 모드는 실제 아이템 묶음을 따로 보여줍니다. 묶음을 개별적으로 다루려면 분리 모드로 전환하세요.",
+    TUTORIAL_CATEGORIES="Shift 키를 누른 채 아이템을 범주 제목으로 끌어 놓으면 해당 범주에 지정됩니다. 범주 제목을 끌어 순서를 바꿀 수도 있습니다.",
+    TUTORIAL_RECENT_RETAIL="새 아이템은 최근 추가됨에 표시됩니다. 빗자루 버튼을 누르면 목록을 비우고 블리자드의 실제 가방 정렬을 실행합니다.",
+    TUTORIAL_RECENT_CLASSIC="새 아이템은 최근 추가됨에 표시됩니다. 빗자루 버튼을 누르면 실제 가방 정렬 없이 범주로 이동합니다.",
+    TUTORIAL_NEXT="다음",
+    TUTORIAL_DONE="완료",
+    TUTORIAL_SKIP="건너뛰기",
+
 }
 local ZHCN = {
+    BANK_BLOCKS_AUTO_HINT="当银行窗口高度超过屏幕的 3/4 且横向空间足够时，会自动增加分类列数。",
     OK="确定", CANCEL="取消", CLOSE="关闭",
 
     RECENT_TIMER="新物品计时器", MINUTES_SHORT="分钟",
@@ -618,7 +713,7 @@ local ZHCN = {
     CAT_WEAPON="武器",
     CAT_EQUIPMENT="装备",
     CAT_CONSUMABLE="消耗品",
-    CAT_REAGENT="材料",
+    CAT_ENHANCEMENT="物品强化", CAT_REAGENT="材料",
     CAT_RECIPE="配方",
     CAT_QUEST="任务",
     CAT_CONTAINER="容器",
@@ -700,11 +795,7 @@ local ZHCN = {
     LOCALE_UNKNOWN="不支持语言 %s。可用：ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto。",
     COMMANDS="命令：",
     CMD_TOGGLE="/wb - 打开/关闭 WagBag",
-    CMD_SCAN="/wb scan - 扫描当前背包",
     CMD_SETTINGS="/wb settings - 打开/关闭设置",
-    AUTO_CATEGORIES="自动分类：",
-    VIRTUAL_GROUPS="%s：%d 个虚拟组",
-
     CAT_DECOR="家宅装饰",
     HIDE="隐藏",
     UNHIDE="显示",
@@ -735,8 +826,22 @@ local ZHCN = {
     PROFILE_NAME_REQUIRED="请输入配置名称。",
     PROFILE_DEFAULT_PROTECTED="Default 配置无法重命名或删除。",
     PROFILE_EXPORT_TITLE="导出配置", PROFILE_EXPORT_HINT="字符串已自动选中。按 Ctrl + C 复制，或按 Esc 关闭。",
+    BANK_RECENT_ENABLED="在银行显示最近添加", BANK_RECENT_TIMER="银行新物品计时器",
+     
+    TUTORIAL_REPLAY="重播教程",
+    TUTORIAL_TITLE="WagBag 入门",
+    TUTORIAL_STEP_STACKS="堆叠显示按钮", TUTORIAL_STEP_CATEGORIES="分类标题", TUTORIAL_STEP_BROOM="扫帚按钮",
+    TUTORIAL_STACKS="合并模式会将相同物品归为一组；分开模式显示各个实际堆叠。需要单独操作每一堆物品时，请切换到分开模式。",
+    TUTORIAL_CATEGORIES="按住 Shift 将物品拖到分类标题上即可指定分类。拖动分类标题还可以调整分类顺序。",
+    TUTORIAL_RECENT_RETAIL="新物品会出现在“最近添加”中。点击扫帚会清空此分类并执行暴雪的实际背包整理。",
+    TUTORIAL_RECENT_CLASSIC="新物品会出现在“最近添加”中。点击扫帚会将它们归入分类，但不会实际整理背包。",
+    TUTORIAL_NEXT="下一步",
+    TUTORIAL_DONE="完成",
+    TUTORIAL_SKIP="跳过",
+
 }
 local ZHTW = {
+    BANK_BLOCKS_AUTO_HINT="當銀行視窗高度超過螢幕的 3/4 且橫向空間足夠時，會自動增加分類欄數。",
     OK="確定", CANCEL="取消", CLOSE="關閉",
 
     RECENT_TIMER="新物品計時器", MINUTES_SHORT="分鐘",
@@ -746,7 +851,7 @@ local ZHTW = {
     CAT_WEAPON="武器",
     CAT_EQUIPMENT="裝備",
     CAT_CONSUMABLE="消耗品",
-    CAT_REAGENT="材料",
+    CAT_ENHANCEMENT="物品強化", CAT_REAGENT="材料",
     CAT_RECIPE="配方",
     CAT_QUEST="任務",
     CAT_CONTAINER="容器",
@@ -828,11 +933,7 @@ local ZHTW = {
     LOCALE_UNKNOWN="不支援語系 %s。可用：ruRU, enUS, enGB, deDE, frFR, esES, esMX, itIT, ptBR, koKR, zhCN, zhTW, auto。",
     COMMANDS="指令：",
     CMD_TOGGLE="/wb - 開啟/關閉 WagBag",
-    CMD_SCAN="/wb scan - 掃描目前背包",
     CMD_SETTINGS="/wb settings - 開啟/關閉設定",
-    AUTO_CATEGORIES="自動分類：",
-    VIRTUAL_GROUPS="%s：%d 個虛擬群組",
-
     CAT_DECOR="房屋裝飾",
     HIDE="隱藏",
     UNHIDE="顯示",
@@ -863,6 +964,19 @@ local ZHTW = {
     PROFILE_NAME_REQUIRED="請輸入設定檔名稱。",
     PROFILE_DEFAULT_PROTECTED="Default 設定檔無法重新命名或刪除。",
     PROFILE_EXPORT_TITLE="匯出設定檔", PROFILE_EXPORT_HINT="字串已自動選取。按 Ctrl + C 複製，或按 Esc 關閉。",
+    BANK_RECENT_ENABLED="在銀行顯示最近新增", BANK_RECENT_TIMER="銀行新物品計時器",
+     
+    TUTORIAL_REPLAY="重新播放教學",
+    TUTORIAL_TITLE="WagBag 入門",
+    TUTORIAL_STEP_STACKS="堆疊顯示按鈕", TUTORIAL_STEP_CATEGORIES="分類標題", TUTORIAL_STEP_BROOM="掃帚按鈕",
+    TUTORIAL_STACKS="合併模式會將相同物品歸為一組；分開模式顯示各個實際堆疊。需要單獨操作每個堆疊時，請切換到分開模式。",
+    TUTORIAL_CATEGORIES="按住 Shift 將物品拖到分類標題上即可指定分類。拖曳分類標題還能調整分類順序。",
+    TUTORIAL_RECENT_RETAIL="新物品會出現在「最近新增」中。按下掃帚會清空此分類並執行暴雪的實際背包整理。",
+    TUTORIAL_RECENT_CLASSIC="新物品會出現在「最近新增」中。按下掃帚會將物品歸入分類，但不會實際整理背包。",
+    TUTORIAL_NEXT="下一步",
+    TUTORIAL_DONE="完成",
+    TUTORIAL_SKIP="略過",
+
 }
 
 SB.Locales = { ruRU=RU, enUS=EN, enGB=EN, deDE=DE, frFR=FR, esES=ES, esMX=ES, itIT=IT, ptBR=PT, koKR=KO, zhCN=ZHCN, zhTW=ZHTW }

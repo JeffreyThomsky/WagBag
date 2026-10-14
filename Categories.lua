@@ -4,6 +4,7 @@ SB.Categories = {
     weapon =     { name = SB:T("CAT_WEAPON"),       order = 10 },
     equipment =  { name = SB:T("CAT_EQUIPMENT"),   order = 20 },
     consumable = { name = SB:T("CAT_CONSUMABLE"),  order = 30 },
+    enhancement = { name = SB:T("CAT_ENHANCEMENT"), order = 35 },
     reagent =    { name = SB:T("CAT_REAGENT"),     order = 40 },
     recipe =     { name = SB:T("CAT_RECIPE"),      order = 50 },
     decor =      { name = SB:T("CAT_DECOR"),       order = 55 },
@@ -17,7 +18,7 @@ function SB:RefreshLocalizedCategoryNames()
     if not self.Categories then return end
     local keys = {
         weapon="CAT_WEAPON", equipment="CAT_EQUIPMENT", consumable="CAT_CONSUMABLE",
-        reagent="CAT_REAGENT", recipe="CAT_RECIPE", decor="CAT_DECOR", quest="CAT_QUEST",
+        enhancement="CAT_ENHANCEMENT", reagent="CAT_REAGENT", recipe="CAT_RECIPE", decor="CAT_DECOR", quest="CAT_QUEST",
         container="CAT_CONTAINER", junk="CAT_JUNK", misc="CAT_MISC",
     }
     for categoryKey, localeKey in pairs(keys) do
@@ -97,14 +98,23 @@ function SB:GetAutomaticCategory(group)
         return "equipment"
     end
 
+     
+     
+     
+     
+    if classID == CLASS.GEM
+        or classID == CLASS.ITEM_ENHANCEMENT
+        or (self.isClassic and classID == CLASS.CONSUMABLE and group.subClassID == 6)
+    then
+        return "enhancement"
+    end
+
     if classID == CLASS.CONSUMABLE then
         return "consumable"
     end
 
     if classID == CLASS.REAGENT
         or classID == CLASS.TRADEGOODS
-        or classID == CLASS.GEM
-        or classID == CLASS.ITEM_ENHANCEMENT
         or classID == CLASS.PROFESSION
     then
         return "reagent"
@@ -151,21 +161,75 @@ function SB:GetCategoryName(key)
     return key
 end
 
+ 
+ 
+ 
+function SB:SetUnifiedItemSearch(text)
+    if self._syncingItemSearch then return end
+    text = text or ""
+    self._syncingItemSearch = true
+    self.searchText = text
+    self.bankSearchText = text
+
+    local setSearch = C_Container and C_Container.SetItemSearch
+    local ok = false
+    if type(setSearch) == "function" then
+        ok = pcall(setSearch, text)
+    end
+    self._nativeItemSearch = ok
+
+     
+     
+    if self.mainSearchBox and self.mainSearchBox:GetText() ~= text then
+        self.mainSearchBox:SetText(text)
+    end
+    if self.bankSearchBox and self.bankSearchBox:GetText() ~= text then
+        self.bankSearchBox:SetText(text)
+    end
+    self._syncingItemSearch = false
+
+    if self.mainFrame and self.mainFrame:IsShown() and not InCombatLockdown() then
+        self:RefreshBags("Categories.lua:192")
+    end
+    if self.bankFrame and self.bankFrame:IsShown() and self.bankAccessOpen then
+        self:RefreshBank("Categories.lua:195")
+    end
+end
+
+ 
+ 
+function SB:ResetBagSearchOnToggle()
+    if self.mainSearchBox then self.mainSearchBox:ClearFocus() end
+    if (self.searchText or "") == "" and (self.bankSearchText or "") == "" then return end
+    self:SetUnifiedItemSearch("")
+end
+
 function SB:GroupMatchesSearch(group, searchText)
     searchText = strtrim(string.lower(searchText or ""))
-    if searchText == "" then
-        return true
+    if searchText == "" then return true end
+
+     
+     
+    if self._nativeItemSearch then
+        local hasNativeResult = false
+        for _, slot in ipairs(group.slots or {}) do
+            local info = C_Container.GetContainerItemInfo(slot.bagID, slot.slotID)
+            if info and type(info.isFiltered) == "boolean" then
+                hasNativeResult = true
+                if not info.isFiltered then return true end
+            end
+        end
+        if hasNativeResult then return false end
     end
 
+     
     local name = group.itemName
     if not name and group.itemID then
         name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(group.itemID)
     end
-
     if name and string.find(string.lower(name), searchText, 1, true) then
         return true
     end
-
     return string.find(tostring(group.itemID or ""), searchText, 1, true) ~= nil
 end
 
@@ -206,12 +270,13 @@ function SB:SortCategoryGroups(items)
     end)
 end
 
-function SB:BuildCategoryBuckets(groups, showHidden)
+function SB:BuildCategoryBuckets(groups, showHidden, recentOverride)
     local buckets = {}
+    local recentKeys = recentOverride or self.recentGroupKeys
 
     for _, group in pairs(groups) do
         local categoryKey
-        if self.recentGroupKeys and self.recentGroupKeys[group.key] then
+        if recentKeys and recentKeys[group.key] then
             categoryKey = "__recent"
         elseif group.quality == 0 then
             categoryKey = "junk"

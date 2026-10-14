@@ -289,74 +289,115 @@ local function WagBag_GetCIMIWrapper(cimiFrame)
     return parent.wagBagWrapper or parent
 end
 
+ 
+ 
+local function WagBag_HideCIMIIcon(overlay)
+    if overlay and overlay.CIMIIconTexture then
+        overlay.CIMIIconTexture:SetShown(false)
+    end
+end
+
+local function WagBag_InvalidateCIMI(overlay)
+    if not overlay then return end
+    overlay._wagCIMIActive = false
+    overlay._wagCIMIWrapper = nil
+    overlay._wagCIMILink = nil
+    overlay._wagCIMIItemID = nil
+    overlay._wagCIMIBagID = nil
+    overlay._wagCIMISlotID = nil
+    overlay:SetScript("OnUpdate", nil)
+    WagBag_HideCIMIIcon(overlay)
+     
+     
+end
+
 local function WagBag_CIMIUpdateIcon(cimiFrame)
     if not cimiFrame then return end
-
-    if type(CIMI_CheckOverlayIconEnabled) == "function"
-        and not CIMI_CheckOverlayIconEnabled()
-    then
-        if cimiFrame.CIMIIconTexture then
-            cimiFrame.CIMIIconTexture:SetShown(false)
+    if type(CIMI_CheckOverlayIconEnabled) == "function" then
+        local okEnabled, enabled = pcall(CIMI_CheckOverlayIconEnabled)
+        if not okEnabled or not enabled then
+            WagBag_InvalidateCIMI(cimiFrame)
+            return
         end
-        cimiFrame:SetScript("OnUpdate", nil)
-        return
     end
 
     local wrapper = WagBag_GetCIMIWrapper(cimiFrame)
-    if not wrapper then return end
-
-    local bagID = wrapper.wagBagID
-    local slotID = wrapper.wagSlotID
-    if bagID == nil or slotID == nil then
-        if cimiFrame.CIMIIconTexture then
-            cimiFrame.CIMIIconTexture:SetShown(false)
-        end
+    if not wrapper or not cimiFrame._wagCIMIActive
+        or cimiFrame._wagCIMIWrapper ~= wrapper then
+        WagBag_InvalidateCIMI(cimiFrame)
         return
     end
+    if cimiFrame._wagCIMIPending then
+        return
+    end
+    if not (C_Timer and C_Timer.After) then return end
+    cimiFrame._wagCIMIPending = true
 
     C_Timer.After(0, function()
-        if not cimiFrame or not cimiFrame:GetParent() then return end
-        local currentWrapper = WagBag_GetCIMIWrapper(cimiFrame)
-        if not currentWrapper then return end
-        local currentBagID = currentWrapper.wagBagID
-        local currentSlotID = currentWrapper.wagSlotID
-        if currentBagID == nil or currentSlotID == nil then return end
+        cimiFrame._wagCIMIPending = false
+        local function Discard()
+            WagBag_HideCIMIIcon(cimiFrame)
+        end
 
-        local itemLink = C_Container.GetContainerItemLink(currentBagID, currentSlotID)
-        if not itemLink then
-            if cimiFrame.CIMIIconTexture then
-                cimiFrame.CIMIIconTexture:SetShown(false)
+        local currentWrapper = WagBag_GetCIMIWrapper(cimiFrame)
+        if not currentWrapper or not cimiFrame._wagCIMIActive
+            or currentWrapper ~= cimiFrame._wagCIMIWrapper
+            then
+            Discard()
+            return
+        end
+        local bagID, slotID = currentWrapper.wagBagID, currentWrapper.wagSlotID
+        if bagID == nil or slotID == nil
+            or bagID ~= cimiFrame._wagCIMIBagID
+            or slotID ~= cimiFrame._wagCIMISlotID then
+            Discard()
+            return
+        end
+        if not (C_Container and C_Container.GetContainerItemLink) then
+            Discard()
+            return
+        end
+        local link = C_Container.GetContainerItemLink(bagID, slotID)
+        if not link or link ~= cimiFrame._wagCIMILink then
+            Discard()
+            return
+        end
+        if C_Container.GetContainerItemInfo then
+            local info = C_Container.GetContainerItemInfo(bagID, slotID)
+            if not info or info.itemID ~= cimiFrame._wagCIMIItemID then
+                Discard()
+                return
             end
+        end
+        if not WagBag_HasCIMI() then
+            Discard()
             return
         end
 
-        if CanIMogIt
-            and type(CanIMogIt.GetTooltipText) == "function"
-            and type(CIMI_SetIcon) == "function"
-        then
-            local okText, tooltipText, unmodifiedText = pcall(CanIMogIt.GetTooltipText, CanIMogIt, nil, currentBagID, currentSlotID)
-            if okText then
-                pcall(CIMI_SetIcon, cimiFrame, WagBag_CIMIUpdateIcon, tooltipText, unmodifiedText)
+        local okText, tooltipText, unmodifiedText = pcall(
+            CanIMogIt.GetTooltipText, CanIMogIt, nil, bagID, slotID)
+        if okText then
+            local okSet = pcall(CIMI_SetIcon, cimiFrame, WagBag_CIMIUpdateIcon, tooltipText, unmodifiedText)
+            if not okSet then
+                cimiFrame:SetScript("OnUpdate", nil)
+                WagBag_HideCIMIIcon(cimiFrame)
             end
+        else
+            cimiFrame:SetScript("OnUpdate", nil)
+            WagBag_HideCIMIIcon(cimiFrame)
         end
     end)
 end
 
 function SB:EnsureCanIMogItOverlay(wrapper)
-    if not WagBag_HasCIMI() then return nil end
-    if not wrapper.nativeButton then return nil end
+    if not WagBag_HasCIMI() or not wrapper.nativeButton then return nil end
 
     local button = wrapper.nativeButton
     button.wagBagWrapper = wrapper
-
     if not button.CanIMogItOverlay then
         self.cimiOverlayCounter = (self.cimiOverlayCounter or 0) + 1
-        local ok = pcall(
-            CIMI_AddToFrame,
-            button,
-            WagBag_CIMIUpdateIcon,
-            "WagBag." .. self.cimiOverlayCounter
-        )
+        local ok = pcall(CIMI_AddToFrame, button, WagBag_CIMIUpdateIcon,
+            "WagBag." .. self.cimiOverlayCounter)
         if not ok then return nil end
     end
 
@@ -368,6 +409,11 @@ function SB:EnsureCanIMogItOverlay(wrapper)
         if overlay.CIMIIconTexture then
             overlay.CIMIIconTexture:SetDrawLayer("OVERLAY", 7)
             overlay.CIMIIconTexture:SetAlpha(1)
+        end
+         
+         
+        if not overlay._wagCIMIActive then
+            overlay:SetScript("OnUpdate", nil)
         end
     end
     wrapper.CanIMogItOverlay = overlay
@@ -383,17 +429,43 @@ function SB:UpdateCanIMogIt(wrapper, group)
     end
 
     if not WagBag_HasCIMI() then
-        local old = wrapper.CanIMogItOverlay or (wrapper.nativeButton and wrapper.nativeButton.CanIMogItOverlay)
-        if old then old:Hide() end
-        if old and old.CIMIIconTexture then old.CIMIIconTexture:SetShown(false) end
+        local old = wrapper.CanIMogItOverlay
+            or (wrapper.nativeButton and wrapper.nativeButton.CanIMogItOverlay)
+        if old then
+            WagBag_InvalidateCIMI(old)
+            old:Hide()
+        end
+        return
+    end
+    local overlay = self:EnsureCanIMogItOverlay(wrapper)
+    if not overlay then return end
+
+    local bagID, slotID = wrapper.wagBagID, wrapper.wagSlotID
+    local link = bagID ~= nil and slotID ~= nil
+        and C_Container and C_Container.GetContainerItemLink
+        and C_Container.GetContainerItemLink(bagID, slotID) or nil
+    if not link then
+        WagBag_InvalidateCIMI(overlay)
         return
     end
 
-    local overlay = self:EnsureCanIMogItOverlay(wrapper)
-    if overlay then
-        overlay:Show()
-        WagBag_CIMIUpdateIcon(overlay)
+    local changed = not overlay._wagCIMIActive
+        or overlay._wagCIMIWrapper ~= wrapper
+        or overlay._wagCIMIBagID ~= bagID
+        or overlay._wagCIMISlotID ~= slotID
+        or overlay._wagCIMILink ~= link
+        or overlay._wagCIMIItemID ~= group.itemID
+    if changed then
+         
+         
+        WagBag_HideCIMIIcon(overlay)
+        overlay:SetScript("OnUpdate", nil)
     end
+    overlay._wagCIMIWrapper = wrapper
+    overlay._wagCIMIBagID, overlay._wagCIMISlotID = bagID, slotID
+    overlay._wagCIMILink, overlay._wagCIMIItemID = link, group.itemID
+    overlay._wagCIMIActive = true
+    WagBag_CIMIUpdateIcon(overlay)
 end
 
 function SB:UpdateItemCooldown(wrapper, group)
@@ -467,8 +539,14 @@ local function NormalizeNativeHitLayer(button)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
 
-    local regions = { button:GetRegions() }
-    for _, region in ipairs(regions) do
+     
+     
+    local numRegions = button.GetNumRegions and button:GetNumRegions() or 0
+    if not button._wagRegions or button._wagRegionCount ~= numRegions then
+        button._wagRegions = { button:GetRegions() }
+        button._wagRegionCount = numRegions
+    end
+    for _, region in ipairs(button._wagRegions) do
         if region and region.SetAlpha then
             region:SetAlpha(0)
         end
@@ -532,7 +610,89 @@ function SB:BindItemButton(wrapper, group)
 
 end
 
+ 
+ 
+ 
+function SB:BindBagItemButton(wrapper, group)
+    local slots = group and group.slots
+    local first = slots and slots[1]
+    if not first then
+        self:ResetItemButton(wrapper)
+        return
+    end
+
+    local opts = self.db and self.db.items
+    local countStyle = opts and opts.stackCount
+    local levelStyle = opts and opts.itemLevel
+    local fontSize = tonumber(countStyle and countStyle.fontSize) or 12
+    local levelFont = tonumber(levelStyle and levelStyle.fontSize) or 12
+    local levelOn = levelStyle and levelStyle.enabled == true
+    local qualityOn = opts and opts.showQualityBorder == true
+    local unchanged = wrapper._bagFastValid
+        and wrapper._bagGroupKey == group.key
+        and wrapper._bagID == first.bagID
+        and wrapper._bagSlotID == first.slotID
+        and wrapper._bagItemID == group.itemID
+        and wrapper._bagCount == group.count
+        and wrapper._bagPhysicalSlots == group.physicalSlots
+        and wrapper._bagLink == group.itemLink
+        and wrapper._bagIcon == group.iconFileID
+        and wrapper._bagQuality == group.quality
+        and wrapper._bagEquipment == group.nonStackableEquipment
+        and wrapper._bagCountFont == fontSize
+        and wrapper._bagLevelFont == levelFont
+        and wrapper._bagLevelOn == levelOn
+        and wrapper._bagQualityOn == qualityOn
+
+    if unchanged then
+        wrapper.group = group
+         
+        local search = self.searchText or ""
+        if wrapper._bagSearch ~= search or self._bagSearchNeedsRefresh then
+            local matches = strtrim(search) == "" or self:GroupMatchesSearch(group, search)
+            wrapper:SetAlpha(matches and 1 or 0.22)
+            wrapper._bagSearch = search
+        end
+         
+        if C_Container and C_Container.GetContainerItemCooldown then
+            local startTime, duration, enabled = C_Container.GetContainerItemCooldown(first.bagID, first.slotID)
+            startTime = tonumber(startTime) or 0
+            duration = tonumber(duration) or 0
+            local endTime = enabled ~= 0 and startTime > 0 and duration > 1.5
+                and (startTime + duration) or nil
+            if wrapper.cooldownEnd ~= endTime then
+                self:UpdateItemCooldown(wrapper, group)
+            end
+        end
+        return
+    end
+
+    self:BindItemButton(wrapper, group)
+    wrapper._bagFastValid = true
+    wrapper._bagGroupKey = group.key
+    wrapper._bagID, wrapper._bagSlotID = first.bagID, first.slotID
+    wrapper._bagItemID = group.itemID
+    wrapper._bagCount = group.count
+    wrapper._bagPhysicalSlots = group.physicalSlots
+    wrapper._bagLink = group.itemLink
+    wrapper._bagIcon = group.iconFileID
+    wrapper._bagQuality = group.quality
+    wrapper._bagEquipment = group.nonStackableEquipment
+    wrapper._bagCountFont = fontSize
+    wrapper._bagLevelFont = levelFont
+    wrapper._bagLevelOn = levelOn
+    wrapper._bagQualityOn = qualityOn
+    wrapper._bagSearch = self.searchText or ""
+end
+
+function SB:InvalidateBagButtonCache()
+    for _, wrapper in ipairs(self.itemButtons or {}) do
+        wrapper._bagFastValid = false
+    end
+end
+
 function SB:ResetItemButton(wrapper)
+    wrapper._bagFastValid = false
     wrapper:SetAlpha(1)
     if wrapper.hoverHighlight then wrapper.hoverHighlight:Hide() end
     wrapper:Hide()
@@ -548,6 +708,7 @@ function SB:ResetItemButton(wrapper)
         or (wrapper.nativeButton and wrapper.nativeButton.CanIMogItOverlay)
 
     if overlay then
+        WagBag_InvalidateCIMI(overlay)
         overlay:Hide()
     end
 end

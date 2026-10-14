@@ -12,7 +12,7 @@ local function Apply()
     if SB.PersistCurrentProfile then SB:PersistCurrentProfile() end
     if SB.mainFrame and SB.mainFrame:IsShown() then
         if SB.RefreshCurrencyBar then SB:RefreshCurrencyBar() end
-        SB:RefreshBags()
+        SB:RefreshBags("Settings.lua:15")
     end
     if SB.RefreshSettingsValues then SB:RefreshSettingsValues() end
 end
@@ -76,7 +76,7 @@ local function Slider(parent,label,y,minv,maxv,step,getter,setter,formatter)
     function slider:Sync()
         self._sync=true; local v=getter(); self:SetValue(v); value:SetText(self._format(v)); self._sync=false
     end
-    row.slider=slider; row.value=value
+    row.slider=slider; row.value=value; row.label=l
     return slider
 end
 
@@ -103,7 +103,12 @@ local function AnchorSelector(parent,label,y,getter,setter)
         icon:SetSize(27,27); icon:SetPoint("CENTER")
         if icon.SetRotation then icon:SetRotation(rotation[a]) end
         b.icon=icon
-        b:SetScript("OnClick",function() setter(a); Apply() end)
+        b:SetScript("OnClick",function() setter(a); Apply(); row.Sync() end)
+        b:SetScript("OnEnter",function(x)
+            if getter()==a then x:SetBackdropBorderColor(1,.75,.05,1)
+            else x:SetBackdropBorderColor(.85,.68,.08,1) end
+        end)
+        b:SetScript("OnLeave",function() row.Sync() end)
         b.anchor=a; row.buttons[a]=b
     end
     row.Sync=function()
@@ -468,12 +473,54 @@ function SB:CreateBankSettings(parent)
     y=Section(page,SB:T("BANK_WINDOW"),y)
     page.placeButton=Button(page,SB:T("BANK_POSITION"),190);page.placeButton:SetPoint("TOPLEFT",0,y);page.placeButton:SetScript("OnClick",function()SB:ToggleBankPlacement()end);y=y-42
     page.scaleSlider=Slider(page,SB:T("BANK_SCALE"),y,.5,2,.05,function()return SB.db.bankLayout.scale or 1 end,function(v)if SB.SetBankScale then SB:SetBankScale(v) else SB.db.bankLayout.scale=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
-    page.columnsSlider=Slider(page,SB:T("CELLS_PER_ROW"),y,6,30,1,function()return SB.db.bankLayout.cellsPerRow or 18 end,function(v)SB.db.bankLayout.cellsPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);y=y-ROW_H
-    page.blocksSlider=Slider(page,SB:T("BANK_BLOCKS_PER_ROW"),y,1,4,1,function()return SB.db.bankLayout.blocksPerRow or 2 end,function(v)SB.db.bankLayout.blocksPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);y=y-ROW_H
+    page.columnsSlider=Slider(page,SB:T("CELLS_PER_ROW"),y,6,30,1,function()return SB.db.bankLayout.cellsPerRow or 18 end,function(v)SB.db.bankLayout.cellsPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Settings.lua:476") end end);y=y-ROW_H
+    page.blocksSlider=Slider(page,SB:T("BANK_BLOCKS_PER_ROW"),y,1,4,1,function()return SB.db.bankLayout.blocksPerRow or 2 end,function(v)SB.db.bankLayout.blocksPerRow=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Settings.lua:477") end end)
+    local blocksRow=page.blocksSlider:GetParent()
+    local help=CreateFrame("Button",nil,blocksRow,"BackdropTemplate")
+    help:SetSize(15,15)
+    help:SetPoint("LEFT",blocksRow.label,"RIGHT",6,0)
+    Backdrop(help,{.075,.075,.08,.9},{.38,.38,.41,1})
+    local symbol=help:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+    symbol:SetPoint("CENTER",0,0)
+    symbol:SetText("?")
+    help:SetScript("OnEnter",function(button)
+        button:SetBackdropBorderColor(1,.75,.05,1)
+        GameTooltip:SetOwner(button,"ANCHOR_RIGHT")
+        GameTooltip:SetText(SB:T("BANK_BLOCKS_AUTO_HINT"),1,.82,0,1,true)
+        GameTooltip:Show()
+    end)
+    help:SetScript("OnLeave",function(button)
+        button:SetBackdropBorderColor(.38,.38,.41,1)
+        GameTooltip:Hide()
+    end)
+    page.blocksHelp=help
+    y=y-ROW_H
     page.alphaSlider=Slider(page,SB:T("WINDOW_ALPHA"),y,.15,1,.05,function()return SB.db.bankLayout.backgroundAlpha or .92 end,function(v)SB.db.bankLayout.backgroundAlpha=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyNativeBankAppearance() end end,function(v)return math.floor(v*100+.5).."%"end);y=y-ROW_H
     if not SB.isClassic then
-        page.separateMaterials=Check(page,SB:T("SHOW_MATERIALS_SEPARATELY"),function()return SB.db.bankLayout.separateMaterials and true or false end,function(v)SB.db.bankLayout.separateMaterials=v;if not v and SB.bankMode=="materials" and SB.bankFrame and SB.bankFrame.charButton then SB.bankFrame.charButton:Click() elseif SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank() end end);page.separateMaterials:SetPoint("TOPLEFT",0,y);y=y-ROW_H
+        page.separateMaterials=Check(page,SB:T("SHOW_MATERIALS_SEPARATELY"),function()return SB.db.bankLayout.separateMaterials and true or false end,function(v)SB.db.bankLayout.separateMaterials=v;if not v and SB.bankMode=="materials" and SB.bankFrame and SB.bankFrame.charButton then SB.bankFrame.charButton:Click() elseif SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Settings.lua:480") end end);page.separateMaterials:SetPoint("TOPLEFT",0,y);y=y-ROW_H
     end
+    page.bankRecentCheck=Check(page,SB:T("BANK_RECENT_ENABLED"),function()
+        return SB.db.bankLayout.recentEnabled == true
+    end,function(v)
+        SB.db.bankLayout.recentEnabled=v and true or false
+        SB:ClearBankRecent()
+        if SB.ClearWarbandRecent then SB:ClearWarbandRecent() end
+        if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Settings.lua:487") end
+    end)
+    page.bankRecentCheck:SetPoint("TOPLEFT",0,y)
+     
+     
+    y=y-(SB.isClassic and (ROW_H-18) or ROW_H)
+    page.bankRecentTimer=Slider(page,SB:T("BANK_RECENT_TIMER"),y,0,60,1,
+        function() return SB.db.bankLayout.recentTimerMinutes or 0 end,
+        function(v)
+            SB.db.bankLayout.recentTimerMinutes=v
+            SB:ClearBankRecent()
+            if SB.ClearWarbandRecent then SB:ClearWarbandRecent() end
+            if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:RefreshBank("Settings.lua:495") end
+        end,
+        function(v) return math.floor(v+.5).." "..SB:T("MINUTES_SHORT") end)
+    y=y-ROW_H
     page.anchorSelector=AnchorSelector(page,SB:T("BANK_ANCHOR"),y,function()return SB.db.bankLayout.anchor or "TOPLEFT"end,function(v)SB.db.bankLayout.anchor=v;if SB.bankAccessOpen and SB.bankFrame and SB.bankFrame:IsShown() then SB:ApplyBankAnchor(v) end end); y=y-82
     page.reset=Button(page,SB:T("RESET_SETTINGS"),155); page.reset:SetPoint("TOPLEFT",0,y)
     page.reset:SetScript("OnClick",function()
@@ -482,12 +529,17 @@ function SB:CreateBankSettings(parent)
         SB.db.bankLayout.cellsPerRow=18
         SB.db.bankLayout.blocksPerRow=2
         SB.db.bankLayout.separateMaterials=false
+        SB.db.bankLayout.splitViewEnabled=true
+        SB.db.bankLayout.recentEnabled=false
+        SB.db.bankLayout.recentTimerMinutes=0
+        SB:ClearBankRecent()
+        if SB.ClearWarbandRecent then SB:ClearWarbandRecent() end
         SB.db.bankLayout.backgroundAlpha=.92
         SB.db.bankLayout.anchor="TOPLEFT"
         if SB.bankFrame and SB.bankFrame:IsShown() then
             SB:ApplyNativeBankAppearance()
             SB:ApplyBankAnchor("TOPLEFT")
-            SB:RefreshBank()
+            SB:RefreshBank("Settings.lua:516")
         end
         SB:RefreshBankSettingsValues()
     end)
@@ -500,6 +552,8 @@ function SB:RefreshBankSettingsValues()
     for _,x in ipairs({p.scaleSlider,p.columnsSlider,p.blocksSlider,p.alphaSlider})do if x then x:Sync();x:SetEnabled(true);x:SetAlpha(1)end end
     if p.anchorSelector then p.anchorSelector:Sync();p.anchorSelector:SetAlpha(1);p.anchorSelector:EnableMouse(true)end
     if p.separateMaterials then p.separateMaterials:SetChecked(self.db.bankLayout.separateMaterials and true or false) end
+    if p.bankRecentCheck then p.bankRecentCheck:SetChecked(self.db.bankLayout.recentEnabled==true) end
+    if p.bankRecentTimer then p.bankRecentTimer:Sync() end
     if p.placeButton then p.placeButton:SetText(self.bankPlacementActive and SB:T("LOCK_POSITION") or SB:T("BANK_POSITION"))end
 end
 
@@ -618,6 +672,7 @@ function SB:CreateProfilesSettings(parent)
     page.use:SetScript("OnClick",function()
         local key=page.selectedProfile
         if not key then SB:Print(SB:T("PROFILE_NOT_FOUND"));return end
+        if key==SB:GetCurrentProfileName() then SB:RefreshProfilesSettings();return end
         if SB:SelectProfile(key) then SB:Print(SB:T("PROFILE_LOADED",key));page.selectedProfile=key;SB:RefreshProfilesSettings();Apply()end
     end)
     page.new:SetScript("OnClick",function()
@@ -687,7 +742,8 @@ function SB:RefreshProfilesSettings()
     local hasSelection=p.selectedProfile~=nil
     local canRename=hasSelection and p.selectedProfile~="Default"
     local canDelete=hasSelection and p.selectedProfile~=self:GetCurrentProfileName() and p.selectedProfile~="Default"
-    p.use:SetEnabled(hasSelection);p.use:SetAlpha(hasSelection and 1 or .45)
+    local canUse=hasSelection and p.selectedProfile~=self:GetCurrentProfileName()
+    p.use:SetEnabled(canUse);p.use:SetAlpha(canUse and 1 or .45)
     p.new:SetEnabled(true);p.new:SetAlpha(1)
     p.rename:SetEnabled(canRename);p.rename:SetAlpha(canRename and 1 or .45)
     p.delete:SetEnabled(canDelete);p.delete:SetAlpha(canDelete and 1 or .45)
@@ -710,6 +766,19 @@ function SB:CreateSettingsFrame()
     title:SetPoint("TOP",0,-14);title:SetText("WagBag")
     local close=CreateFrame("Button",nil,f,"UIPanelCloseButton")
     close:SetPoint("TOPRIGHT",-3,-3);close:SetScript("OnClick",function()f:Hide()end)
+    local help=Button(f,"?",25)
+    help:SetSize(25,23)
+    help:SetPoint("TOPLEFT",f,"TOPLEFT",9,-9)
+    help:SetScript("OnClick",function()
+        if SB.StartTutorial then SB:StartTutorial(true) end
+    end)
+    help:SetScript("OnEnter",function(button)
+        GameTooltip:SetOwner(button,"ANCHOR_RIGHT")
+        GameTooltip:SetText(SB:T("TUTORIAL_REPLAY"))
+        GameTooltip:Show()
+    end)
+    help:SetScript("OnLeave",GameTooltip_Hide)
+    f.tutorialHelpButton=help
     f.activeTab="bags"
 
     local nav=CreateFrame("Frame",nil,f,"BackdropTemplate")

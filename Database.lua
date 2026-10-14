@@ -2,11 +2,11 @@ local _, SB = ...
 
 local defaults = {
     layout = { blocksPerRow=2, cellsPerRow=4, scale=1.0, backgroundAlpha=0.97, locked=false, growthAnchor="TOPLEFT", point=nil, relativePoint=nil, x=nil, y=nil },
-    bankLayout = { blocksPerRow=2, cellsPerRow=18, separateMaterials=false, anchor="TOPLEFT", anchorModel=2, scale=1.0, backgroundAlpha=0.97, locked=false, point=nil, relativePoint=nil, x=nil, y=nil },
+    bankLayout = { blocksPerRow=2, cellsPerRow=18, separateMaterials=false, splitViewEnabled=true, warbandSplitViewEnabled=true, recentEnabled=false, recentTimerMinutes=0, anchor="TOPLEFT", anchorModel=2, scale=1.0, backgroundAlpha=0.97, locked=false, point=nil, relativePoint=nil, x=nil, y=nil },
     items = { sortMode="default", recentTimerMinutes=0, showQualityBorder=true, itemLevel={enabled=true,fontSize=12}, stackCount={fontSize=12} },
     splitView = { enabled=false },
     currency = { selected={} },
-    categories = { custom={}, assignments={}, hidden={}, nextCustomID=1, order={"weapon","equipment","consumable","reagent","recipe","decor","quest","container","misc"} },
+    categories = { custom={}, assignments={}, hidden={}, nextCustomID=1, order={"weapon","equipment","consumable","enhancement","reagent","recipe","decor","quest","container","misc"} },
 }
 
 local function DeepCopy(value)
@@ -41,6 +41,7 @@ local function EnsureBuiltInCategories(profile)
         for i,v in ipairs(order) do if v==before then at=i break end end
         table.insert(order,at,key)
     end
+    insertBefore("enhancement","reagent")
     insertBefore("decor","quest")
     insertBefore("junk","misc")
     profile.categories.order=order
@@ -77,11 +78,19 @@ local function PrepareProfile(profile)
 end
 
 function SB:InitializeDatabase()
+     
+     
+     
+    local existingInstall = type(WagBagDB)=="table" and
+        (WagBagDB.schema~=nil or WagBagDB.profiles~=nil or WagBagDB.layout~=nil)
     if type(WagBagDB)~="table" then WagBagDB={} end
+    if WagBagDB.tutorialSeen==nil then
+        WagBagDB.tutorialSeen=existingInstall and true or false
+    end
 
     if type(WagBagDB.profiles)~="table" then
         local old=next(WagBagDB) and DeepCopy(WagBagDB) or nil
-        WagBagDB={schema=2,profiles={},profileKeys={}}
+        WagBagDB={schema=2,profiles={},profileKeys={},tutorialSeen=old and old.tutorialSeen or false}
         if old and old.layout then WagBagDB.profiles.Default=PrepareProfile(old) end
     end
 
@@ -144,7 +153,7 @@ function SB:ApplyActiveProfile()
     end
 
     if self.RefreshLocalizedCategoryNames then self:RefreshLocalizedCategoryNames() end
-    if self.RefreshBags then self:RefreshBags() end
+    if self.RefreshBags then self:RefreshBags("Database.lua:148") end
     if self.RefreshCurrencyBar then self:RefreshCurrencyBar() end
 
     if self.bankFrame then self.bankFrame._wagBankAnchorAttached=nil end
