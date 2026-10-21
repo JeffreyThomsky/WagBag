@@ -847,7 +847,6 @@ function SB:RefreshBags(source)
     self.mainFrame:SetScale(scale)
     local cellsPerRow=math.max(2,math.min(10,tonumber(self.db.layout.cellsPerRow) or 4))
     local configuredBlocksPerRow=math.max(1,math.min(4,tonumber(self.db.layout.blocksPerRow) or 2))
-    local blocksPerRow=configuredBlocksPerRow
     local maxVisualColumns=math.max(configuredBlocksPerRow,3)
     local columnHeightLimit=(UIParent:GetHeight() or 768)*(2/3)/scale
 
@@ -857,16 +856,21 @@ function SB:RefreshBags(source)
     local normalLayouts={}
     local recentHeight=0
     local recentWidth=0
-    local placementY={}
+
+    local function BlockHeight(category,columns)
+        local displayItems=category.visualItems or category.items
+        local itemCount=#displayItems
+        local itemRows=itemCount>0 and math.ceil(itemCount/columns) or 0
+        if itemRows>0 then
+            return BLOCK_TITLE_HEIGHT+BLOCK_PADDING+itemRows*self.SLOT_SIZE+math.max(0,itemRows-1)*self.SLOT_SPACING+BLOCK_PADDING
+        end
+        return BLOCK_TITLE_HEIGHT+2
+    end
 
     local function PopulateBlock(block,category,columns)
         local displayItems=category.visualItems or category.items
         local itemCount=#displayItems
-        local itemRows=itemCount>0 and math.ceil(itemCount/columns) or 0
-        local blockHeight=BLOCK_TITLE_HEIGHT+2
-        if itemRows>0 then
-            blockHeight=BLOCK_TITLE_HEIGHT+BLOCK_PADDING+itemRows*self.SLOT_SIZE+math.max(0,itemRows-1)*self.SLOT_SPACING+BLOCK_PADDING
-        end
+        local blockHeight=BlockHeight(category,columns)
         local shownColumns=math.min(columns,math.max(1,itemCount))
         local itemsWidth=BLOCK_PADDING*2+shownColumns*self.SLOT_SIZE+math.max(0,shownColumns-1)*self.SLOT_SPACING
         local titleWidth=math.ceil(block.title:GetStringWidth() or 0)+BLOCK_PADDING*2+4
@@ -888,20 +892,50 @@ function SB:RefreshBags(source)
         return blockHeight,blockWidth
     end
 
+    local recentCategory
     for _,category in ipairs(categories) do
         if category.key=="__recent" then
-            categoryFrameIndex=categoryFrameIndex+1
-            local block=AcquireCategoryFrame(self.mainFrame,categoryFrameIndex)
-            block.title:SetText(category.name)
-            block.categoryKey=category.key
-            block.titleHandle.categoryKey=nil
-            local fullColumns=math.max(cellsPerRow,cellsPerRow*blocksPerRow)
-            recentHeight,recentWidth=PopulateBlock(block,category,fullColumns)
-            block:SetSize(recentWidth,recentHeight)
-            block:ClearAllPoints()
-            block:SetPoint("TOPLEFT",self.mainFrame,"TOPLEFT",WINDOW_PADDING,-HEADER_HEIGHT)
+            recentCategory=category
             break
         end
+    end
+
+    local initialRecentHeight=recentCategory and BlockHeight(recentCategory,cellsPerRow*configuredBlocksPerRow) or 0
+    local initialNormalStart=HEADER_HEIGHT+(initialRecentHeight>0 and (initialRecentHeight+BLOCK_GAP) or 0)
+    local plannedPlacementY={}
+    local plannedColumns={}
+    local plannedNormalIndex=0
+    local actualBlocksPerRow=configuredBlocksPerRow
+    for _,category in ipairs(categories) do
+        if category.key~="__recent" then
+            plannedNormalIndex=plannedNormalIndex+1
+            local col=(plannedNormalIndex-1)%configuredBlocksPerRow
+            local height=BlockHeight(category,cellsPerRow)
+            for c=0,maxVisualColumns-1 do
+                if plannedPlacementY[c]==nil then plannedPlacementY[c]=initialNormalStart end
+            end
+            if plannedPlacementY[col]+height>columnHeightLimit and col+1<maxVisualColumns then
+                col=col+1
+                while col+1<maxVisualColumns and plannedPlacementY[col]+height>columnHeightLimit do
+                    col=col+1
+                end
+            end
+            plannedColumns[plannedNormalIndex]=col
+            actualBlocksPerRow=math.max(actualBlocksPerRow,col+1)
+            plannedPlacementY[col]=plannedPlacementY[col]+height+BLOCK_GAP
+        end
+    end
+
+    if recentCategory then
+        categoryFrameIndex=categoryFrameIndex+1
+        local block=AcquireCategoryFrame(self.mainFrame,categoryFrameIndex)
+        block.title:SetText(recentCategory.name)
+        block.categoryKey=recentCategory.key
+        block.titleHandle.categoryKey=nil
+        recentHeight,recentWidth=PopulateBlock(block,recentCategory,cellsPerRow*actualBlocksPerRow)
+        block:SetSize(recentWidth,recentHeight)
+        block:ClearAllPoints()
+        block:SetPoint("TOPLEFT",self.mainFrame,"TOPLEFT",WINDOW_PADDING,-HEADER_HEIGHT)
     end
 
     for _,category in ipairs(categories) do
@@ -914,19 +948,7 @@ function SB:RefreshBags(source)
             block.titleHandle.categoryKey=category.noReorder and nil or category.key
             local h,w=PopulateBlock(block,category,cellsPerRow)
             block:SetSize(w,h)
-            local col=(normalIndex-1)%configuredBlocksPerRow
-            local startY=HEADER_HEIGHT+(recentHeight>0 and (recentHeight+BLOCK_GAP) or 0)
-            for c=0,maxVisualColumns-1 do
-                if placementY[c]==nil then placementY[c]=startY end
-            end
-            if placementY[col]+h>columnHeightLimit and col+1<maxVisualColumns then
-                col=col+1
-                while col+1<maxVisualColumns and placementY[col]+h>columnHeightLimit do
-                    col=col+1
-                end
-            end
-            normalLayouts[#normalLayouts+1]={frame=block,column=col,height=h,width=w}
-            placementY[col]=placementY[col]+h+BLOCK_GAP
+            normalLayouts[#normalLayouts+1]={frame=block,column=plannedColumns[normalIndex],height=h,width=w}
         end
     end
 

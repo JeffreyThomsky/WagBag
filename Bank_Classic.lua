@@ -814,6 +814,7 @@ end
 function SB:OpenBank()
     if self.ResetBankVisualSlotSession then self:ResetBankVisualSlotSession() end
     self:SuppressNativeBank(); self:RefreshBank("Bank_Classic.lua:754"); self.bankFrame:Show();
+    if self.RefreshBagBankDepositAppearance then self:RefreshBagBankDepositAppearance() end
     if self.BeginBankRecentSession then
         self:BeginBankRecentSession()
         self:RefreshBank("Bank_Classic.lua:757")

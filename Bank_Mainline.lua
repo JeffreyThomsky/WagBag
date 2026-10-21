@@ -5,6 +5,23 @@ local ACCOUNT   = (Enum.BankType and Enum.BankType.Account) or 2
 local MATERIALS = "materials"
 local REAGENT_FLAG = (Enum.BagSlotFlags and Enum.BagSlotFlags.ClassReagents) or 0x80
 
+local function BankIsUsable(bankType)
+    if C_Bank and C_Bank.CanUseBank then
+        local ok, usable = pcall(C_Bank.CanUseBank, bankType)
+        if ok and type(usable) == "boolean" then return usable end
+    end
+    if C_Bank and C_Bank.FetchViewableBankTypes then
+        local ok, types = pcall(C_Bank.FetchViewableBankTypes)
+        if ok and type(types) == "table" then
+            for _, value in ipairs(types) do
+                if value == bankType then return true end
+            end
+            return false
+        end
+    end
+    return nil
+end
+
 local function FlatBankButton(parent,text,w)
     local b=CreateFrame("Button",nil,parent,"BackdropTemplate")
     b:SetSize(w or 82,22)
@@ -357,17 +374,20 @@ function SB:CreateBankFrame()
     local war=FlatBankButton(f,self:T("WARBAND"),82)
     war:SetFrameLevel(contentLevel); war:SetPoint("LEFT",reagent,"RIGHT",5,0)
     char:SetScript("OnClick",function()
+        if SB.bankCharacterAvailable == false then return end
         SB.bankMode=CHARACTER
         SelectBlizzardBank(CHARACTER)
         SB:RefreshBank("Bank_Mainline.lua:338")
     end)
     reagent:SetScript("OnClick",function()
+        if SB.bankCharacterAvailable == false then return end
         SB.bankMode=MATERIALS
         local tabs=MaterialTabIDs()
         SelectBlizzardBank(MATERIALS,tabs[1])
         SB:RefreshBank("Bank_Mainline.lua:344")
     end)
     war:SetScript("OnClick",function()
+        if SB.bankAccountAvailable == false then return end
         SB.bankMode=ACCOUNT
          
          
@@ -861,7 +881,7 @@ local function RefreshCategorizedWarband(self,f,allTabs,l)
     local groups={}
     local used,total=0,0
     local pendingRecent=self.warbandRecentPending and self.warbandRecentSnapshot
-    local recentTotals=pendingRecent and {} or nil
+    local recentSnapshot=pendingRecent and {slots={}, totals={}} or nil
      
      
     for _,bagID in ipairs(allTabs) do
@@ -871,8 +891,11 @@ local function RefreshCategorizedWarband(self,f,allTabs,l)
             local info=C_Container.GetContainerItemInfo(bagID,slotID)
             if info and info.itemID then
                 used=used+1
-                if recentTotals then
-                    recentTotals[info.itemID]=(recentTotals[info.itemID] or 0)+(info.stackCount or 1)
+                if recentSnapshot then
+                    local count = info.stackCount or 1
+                    local key = tostring(bagID) .. ":" .. tostring(slotID)
+                    recentSnapshot.slots[key] = {itemID = info.itemID, count = count}
+                    recentSnapshot.totals[info.itemID] = (recentSnapshot.totals[info.itemID] or 0) + count
                 end
                 groups[#groups+1]=PhysicalGroup(ACCOUNT,bagID,slotID,info)
             end
@@ -880,7 +903,7 @@ local function RefreshCategorizedWarband(self,f,allTabs,l)
     end
     f._warbandUsed=used
     f._warbandTotal=total
-    if recentTotals then self:PreviewWarbandRecentFromTotals(recentTotals) end
+    if recentSnapshot then self:PreviewWarbandRecentFromSnapshot(recentSnapshot) end
     RenderCategorizedBankGroups(self,f,groups,l,true)
 end
 
@@ -1058,13 +1081,21 @@ function SB:RefreshBank(source)
     local separateMaterials=Layout().separateMaterials and true or false
     if mode==MATERIALS and not separateMaterials then mode=CHARACTER; self.bankMode=CHARACTER end
     RefreshBankSlotCounter(f,mode,f._warbandUsed,f._warbandTotal)
+    local canUseCharacter=self.bankCharacterAvailable ~= false
+    local canUseAccount=self.bankAccountAvailable ~= false
+    f.charButton:SetShown(canUseCharacter)
     f.charButton:SetActive(mode==CHARACTER)
-    f.materialsViewButton:SetShown(separateMaterials)
+    f.materialsViewButton:SetShown(canUseCharacter and separateMaterials)
     f.materialsViewButton:SetActive(mode==MATERIALS)
     f.materialsViewButton:ClearAllPoints()
     f.materialsViewButton:SetPoint("LEFT",f.charButton,"RIGHT",5,0)
+    f.warButton:SetShown(canUseAccount)
     f.warButton:ClearAllPoints()
-    f.warButton:SetPoint("LEFT",separateMaterials and f.materialsViewButton or f.charButton,"RIGHT",5,0)
+    if canUseCharacter then
+        f.warButton:SetPoint("LEFT",separateMaterials and f.materialsViewButton or f.charButton,"RIGHT",5,0)
+    else
+        f.warButton:SetPoint("TOPLEFT",f,"TOPLEFT",12,-36)
+    end
     f.warButton:SetActive(mode==ACCOUNT)
 
     local isAccount=mode==ACCOUNT
@@ -1101,6 +1132,10 @@ function SB:RefreshBank(source)
     end
     f.purchaseButton:SetShown(canBuy)
     if not f._wagBankAnchorAttached then self:ApplyStoredBankAnchor() end
+    if self._wagDepositVisualBankMode ~= mode then
+        self._wagDepositVisualBankMode = mode
+        if self.RefreshBagBankDepositAppearance then self:RefreshBagBankDepositAppearance() end
+    end
 end
 
 
@@ -1413,17 +1448,35 @@ function SB:ExitBankSystemPanelMode()
 end
 
 function SB:OpenBank()
+    local canUseCharacter=BankIsUsable(CHARACTER)
+    local canUseAccount=BankIsUsable(ACCOUNT)
+    if canUseCharacter == false and canUseAccount == false then
+        local attempts=(self.bankAvailabilityAttempts or 0)+1
+        self.bankAvailabilityAttempts=attempts
+        if attempts <= 3 then
+            local generation=self.bankOpenGeneration
+            C_Timer.After(0.05,function()
+                if SB.bankAccessOpen and SB.bankOpenGeneration == generation then SB:OpenBank() end
+            end)
+        end
+        return
+    end
+    self.bankAvailabilityAttempts=nil
+    self.bankCharacterAvailable=canUseCharacter ~= false
+    self.bankAccountAvailable=canUseAccount ~= false
     if self.ResetBankVisualSlotSession then self:ResetBankVisualSlotSession() end
-    self.bankMode=CHARACTER
-    local tabs=(self.bankMode==MATERIALS) and MaterialTabIDs() or nil
+    self.bankMode=self.bankCharacterAvailable and CHARACTER or ACCOUNT
+    local tabs=self.bankMode==ACCOUNT and TabIDs(ACCOUNT) or nil
+    if self.bankMode==ACCOUNT then self.warbandSelectedTab=tabs[1] end
     SelectBlizzardBank(self.bankMode,tabs and tabs[1])
-     
-     
-     
-     
-    if self.BeginBankRecentSession then self:BeginBankRecentSession() end
-    self:RefreshBank("Bank_Mainline.lua:1195")
+    if self.bankMode==ACCOUNT then
+        if self.BeginWarbandRecentSession then self:BeginWarbandRecentSession() end
+    elseif self.BeginBankRecentSession then
+        self:BeginBankRecentSession()
+    end
+    self:RefreshBank("Bank_Mainline.lua:OpenBank")
     self.bankFrame:Show()
+    if self.RefreshBagBankDepositAppearance then self:RefreshBagBankDepositAppearance() end
     if self.EnterBankSystemPanelMode then self:EnterBankSystemPanelMode() end
 end
 function SB:CloseBank()
@@ -1436,6 +1489,10 @@ function SB:CloseBank()
     self._selectedNativeBankPanel=nil
     if self.bankFrame then self.bankFrame._warbandAppearance=nil end
     self.bankMode=nil
+    self.bankCharacterAvailable=nil
+    self.bankAccountAvailable=nil
+    self.bankAvailabilityAttempts=nil
+    self._wagDepositVisualBankMode=nil
     if self.bankFrame then self.bankFrame:Hide() end
     if self.ExitBankSystemPanelMode then self:ExitBankSystemPanelMode() end
 

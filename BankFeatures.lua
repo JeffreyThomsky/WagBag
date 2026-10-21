@@ -156,36 +156,128 @@ function SB:GetBankRecentStore()
     return WagBagDB.bankRecentItems[key]
 end
 
-function SB:ScanTrackedBankTotals()
-    local totals = {}
-    local tabs = self.GetTrackedBankTabIDs and self:GetTrackedBankTabIDs() or {}
-    for _, bagID in ipairs(tabs) do
-        local slotCount = C_Container.GetContainerNumSlots(bagID) or 0
-        for slotID=1,slotCount do
-            local info = C_Container.GetContainerItemInfo(bagID,slotID)
+local function PhysicalSlotKey(bagID, slotID)
+    return tostring(bagID) .. ":" .. tostring(slotID)
+end
+
+local function ScanRecentSlots(tabIDs)
+    local snapshot = {slots = {}, totals = {}}
+    for _, bagID in ipairs(tabIDs or {}) do
+        for slotID = 1, (C_Container.GetContainerNumSlots(bagID) or 0) do
+            local info = C_Container.GetContainerItemInfo(bagID, slotID)
             if info and info.itemID then
-                totals[info.itemID] = (totals[info.itemID] or 0) + (info.stackCount or 1)
+                local count = info.stackCount or 1
+                snapshot.slots[PhysicalSlotKey(bagID, slotID)] = {itemID = info.itemID, count = count}
+                snapshot.totals[info.itemID] = (snapshot.totals[info.itemID] or 0) + count
             end
         end
     end
-    return totals
+    return snapshot
+end
+
+local function RecentCandidates(previous, current)
+    local gained, candidates, keys = {}, {}, {}
+    for itemID, count in pairs(current.totals) do
+        local increase = count - ((previous and previous.totals[itemID]) or 0)
+        if increase > 0 then gained[itemID] = increase end
+    end
+    for key, slot in pairs(current.slots) do
+        local old = previous and previous.slots[key]
+        local sameItem = old and old.itemID == slot.itemID
+        local added = slot.count - (sameItem and old.count or 0)
+        if gained[slot.itemID] and added > 0 then
+            candidates[#candidates + 1] = {
+                key = key, itemID = slot.itemID, added = added,
+                newSlot = not sameItem,
+            }
+        end
+    end
+    table.sort(candidates, function(a, b)
+        if a.newSlot ~= b.newSlot then return a.newSlot end
+        return a.key < b.key
+    end)
+    for _, candidate in ipairs(candidates) do
+        local remaining = gained[candidate.itemID] or 0
+        if remaining > 0 then
+            keys[candidate.key] = candidate.itemID
+            gained[candidate.itemID] = math.max(0, remaining - candidate.added)
+        end
+    end
+    return keys
+end
+
+local function RecoverRecentMarks(store, snapshot, now)
+    local active = {}
+    for key, mark in pairs(store or {}) do
+        local slot = snapshot.slots[key]
+        if type(key) == "string" and type(mark) == "table"
+            and type(mark.itemID) == "number" and type(mark.expiresAt) == "number"
+            and mark.expiresAt > now and slot and slot.itemID == mark.itemID then
+            active[key] = {itemID = mark.itemID, expiresAt = mark.expiresAt}
+        end
+    end
+    return active
+end
+
+local function SaveRecentMarks(store, marks, now)
+    if not store then return end
+    wipe(store)
+    for key, mark in pairs(marks or {}) do
+        if type(mark.expiresAt) == "number" and mark.expiresAt > now then
+            store[key] = {itemID = mark.itemID, expiresAt = mark.expiresAt}
+        end
+    end
+end
+
+local function ExpireRecentMarks(marks, enabled, minutes, snapshot)
+    if not marks then return end
+    if not enabled then wipe(marks); return end
+    local now = GetServerTime()
+    for key, mark in pairs(marks) do
+        local slot = snapshot and snapshot.slots[key]
+        if (snapshot and (not slot or slot.itemID ~= mark.itemID))
+            or (minutes > 0 and (type(mark.expiresAt) ~= "number" or mark.expiresAt <= now)) then
+            marks[key] = nil
+        end
+    end
+end
+
+local function MarkRecentCandidates(marks, candidates, minutes)
+    local expiry = minutes > 0 and (GetServerTime() + minutes * 60) or true
+    for key, itemID in pairs(candidates) do
+        marks[key] = {itemID = itemID, expiresAt = expiry}
+    end
+end
+
+local function RecentGroupKeys(groups, marks, preview)
+    local keys = {}
+    for _, group in ipairs(groups) do
+        for _, slot in ipairs(group.slots or {}) do
+            local key = PhysicalSlotKey(slot.bagID, slot.slotID)
+            local mark = marks and marks[key]
+            if (mark and mark.itemID == group.itemID)
+                or (preview and preview[key] == group.itemID) then
+                keys[group.key] = true
+                break
+            end
+        end
+    end
+    return keys
+end
+
+function SB:ScanTrackedBankRecentSnapshot()
+    return ScanRecentSlots(self.GetTrackedBankTabIDs and self:GetTrackedBankTabIDs() or {})
 end
 
 function SB:ExpireBankRecent()
-    if not self.bankRecentIDs then return end
     local enabled, minutes = self:BankRecentSettings()
-    if not enabled then self.bankRecentIDs = {}; return end
-    if minutes == 0 then return end
-    local now = GetServerTime()
-    for itemID, expiry in pairs(self.bankRecentIDs) do
-        if type(expiry) ~= "number" or expiry <= now then
-            self.bankRecentIDs[itemID] = nil
-        end
+    if self.bankRecentIDs then
+        ExpireRecentMarks(self.bankRecentIDs, enabled, minutes)
     end
 end
 
 function SB:BeginBankRecentSession()
-    self.bankRecentSnapshot = self:ScanTrackedBankTotals()
+    self.bankRecentSnapshot = self:ScanTrackedBankRecentSnapshot()
     self.bankRecentDeadline = nil
     self.bankRecentPolling = nil
     self.bankRecentPreviewIDs = nil
@@ -193,17 +285,9 @@ function SB:BeginBankRecentSession()
     self.bankRecentIDs = {}
     local enabled, minutes = self:BankRecentSettings()
     if enabled and minutes > 0 then
-        for itemID, expiry in pairs(self:GetBankRecentStore() or {}) do
-            self.bankRecentIDs[tonumber(itemID) or itemID] = expiry
-        end
-        self:ExpireBankRecent()
         local store = self:GetBankRecentStore()
-        if store then
-            wipe(store)
-            for itemID, expiry in pairs(self.bankRecentIDs) do
-                if type(expiry)=="number" then store[itemID]=expiry end
-            end
-        end
+        self.bankRecentIDs = RecoverRecentMarks(store, self.bankRecentSnapshot, GetServerTime())
+        SaveRecentMarks(store, self.bankRecentIDs, GetServerTime())
         self:ScheduleBankRecentExpiration()
     end
 end
@@ -224,29 +308,22 @@ function SB:ClearBankRecent()
     self.bankRecentPreviewIDs = nil
     local store = self:GetBankRecentStore()
     if store then wipe(store) end
-    if self.bankAccessOpen then
-        self.bankRecentSnapshot = self:ScanTrackedBankTotals()
-    end
+    if self.bankAccessOpen then self.bankRecentSnapshot = self:ScanTrackedBankRecentSnapshot() end
 end
 
- 
- 
 function SB:QueueBankRecentTracking()
     if not self.bankAccessOpen or not self.bankRecentSnapshot then return end
     local enabled = self:BankRecentSettings()
     if not enabled then return end
-    self.bankRecentDeadline = GetTime() + 0.8
-     
-     
-     
-    local current = self:ScanTrackedBankTotals()
-    local preview = {}
-    for itemID, count in pairs(current) do
-        if count > (self.bankRecentSnapshot[itemID] or 0) then
-            preview[itemID] = true
-        end
+    local state = self.bankVisualSortState
+    if state and state.mode == self.bankMode then
+        state.deadline = GetTime() + 1.0
+        self.bankRecentSnapshot = self:ScanTrackedBankRecentSnapshot()
+        return
     end
-    self.bankRecentPreviewIDs = preview
+    self.bankRecentDeadline = GetTime() + 0.8
+    local current = self:ScanTrackedBankRecentSnapshot()
+    self.bankRecentPreviewIDs = RecentCandidates(self.bankRecentSnapshot, current)
     if self.bankRecentPolling then return end
     self.bankRecentPolling = true
     local session = self.bankRecentSession
@@ -263,49 +340,30 @@ function SB:QueueBankRecentTracking()
         self.bankRecentPolling = nil
         self.bankRecentPreviewIDs = nil
         local previous = self.bankRecentSnapshot
-        local current = self:ScanTrackedBankTotals()
-        self.bankRecentSnapshot = current
+        local settled = self:ScanTrackedBankRecentSnapshot()
+        self.bankRecentSnapshot = settled
         local _, minutes = self:BankRecentSettings()
-        local now = GetServerTime()
         self.bankRecentIDs = self.bankRecentIDs or {}
-        for itemID, count in pairs(current) do
-            if count > (previous[itemID] or 0) then
-                self.bankRecentIDs[itemID] = minutes > 0 and (now + minutes * 60) or true
-            end
-        end
-        if minutes > 0 then
-            local store = self:GetBankRecentStore()
-            if store then
-                wipe(store)
-                for itemID, expiry in pairs(self.bankRecentIDs) do
-                    if type(expiry) == "number" and expiry > now then store[itemID] = expiry end
-                end
-            end
-        end
-        self:ExpireBankRecent()
+        MarkRecentCandidates(self.bankRecentIDs, RecentCandidates(previous, settled), minutes)
+        ExpireRecentMarks(self.bankRecentIDs, true, minutes, settled)
+        if minutes > 0 then SaveRecentMarks(self:GetBankRecentStore(), self.bankRecentIDs, GetServerTime()) end
         self:ScheduleBankRecentExpiration()
-        if self.bankFrame and self.bankFrame:IsShown() and self.RefreshBank then self:RefreshBank("BankFeatures.lua:185") end
+        if self.bankFrame and self.bankFrame:IsShown() and self.RefreshBank then
+            self:RefreshBank("BankFeatures.lua:BankRecentConfirmed")
+        end
     end
     C_Timer.After(0.2, Check)
 end
 
 function SB:BankRecentKeys(groups)
-    self:ExpireBankRecent()
-    local keys = {}
-    local enabled = self:BankRecentSettings()
-    if not enabled then return keys end
-    for _, group in ipairs(groups) do
-        if (self.bankRecentIDs and self.bankRecentIDs[group.itemID])
-            or (self.bankRecentPreviewIDs and self.bankRecentPreviewIDs[group.itemID]) then
-            keys[group.key] = true
-        end
+    local enabled, minutes = self:BankRecentSettings()
+    if not enabled then return {} end
+    if self.bankRecentIDs then
+        ExpireRecentMarks(self.bankRecentIDs, enabled, minutes)
     end
-    return keys
+    return RecentGroupKeys(groups, self.bankRecentIDs, self.bankRecentPreviewIDs)
 end
 
- 
- 
- 
 local ACCOUNT_BANK_TYPE = (Enum.BankType and Enum.BankType.Account) or 2
 
 function SB:GetWarbandRecentStore()
@@ -314,49 +372,26 @@ function SB:GetWarbandRecentStore()
     return WagBagDB.warbandRecentItems
 end
 
-function SB:ScanWarbandRecentTotals()
-    local totals = {}
-    for _, bagID in ipairs(self:GetTrackedWarbandTabIDs() or {}) do
-        for slotID = 1, (C_Container.GetContainerNumSlots(bagID) or 0) do
-            local info = C_Container.GetContainerItemInfo(bagID, slotID)
-            if info and info.itemID then
-                totals[info.itemID] = (totals[info.itemID] or 0) + (info.stackCount or 1)
-            end
-        end
-    end
-    return totals
+function SB:ScanWarbandRecentSnapshot()
+    return ScanRecentSlots(self:GetTrackedWarbandTabIDs() or {})
 end
 
 function SB:ExpireWarbandRecent()
     if not self.warbandRecentIDs then return end
     local enabled, minutes = self:BankRecentSettings()
-    if not enabled then self.warbandRecentIDs = {}; return end
-    if minutes == 0 then return end
-    local now = GetServerTime()
-    for itemID, expiry in pairs(self.warbandRecentIDs) do
-        if type(expiry) ~= "number" or expiry <= now then
-            self.warbandRecentIDs[itemID] = nil
-        end
-    end
+    ExpireRecentMarks(self.warbandRecentIDs, enabled, minutes)
 end
 
 function SB:SaveWarbandRecent()
-    local store = self:GetWarbandRecentStore()
-    if not store then return end
-    wipe(store)
-    local now = GetServerTime()
-    for itemID, expiry in pairs(self.warbandRecentIDs or {}) do
-        if type(expiry) == "number" and expiry > now then
-            store[itemID] = expiry
-        end
-    end
+    SaveRecentMarks(self:GetWarbandRecentStore(), self.warbandRecentIDs, GetServerTime())
 end
 
 function SB:ScheduleWarbandRecentExpiration()
     local enabled, minutes = self:BankRecentSettings()
     if not enabled or minutes <= 0 or not self.bankAccessOpen then return end
     local now, earliest = GetServerTime(), nil
-    for _, expiry in pairs(self.warbandRecentIDs or {}) do
+    for _, mark in pairs(self.warbandRecentIDs or {}) do
+        local expiry = mark.expiresAt
         if type(expiry) == "number" and expiry > now then
             if not earliest or expiry < earliest then earliest = expiry end
         end
@@ -382,23 +417,18 @@ function SB:BeginWarbandRecentSession()
     self.warbandRecentPolling = nil
     self.warbandRecentPending = nil
     self.warbandRecentPreviewIDs = nil
-    self.warbandRecentSnapshot = self:ScanWarbandRecentTotals()
+    self.warbandRecentSnapshot = self:ScanWarbandRecentSnapshot()
     self.warbandRecentIDs = {}
     self.warbandRecentExpiryToken = (self.warbandRecentExpiryToken or 0) + 1
     local enabled, minutes = self:BankRecentSettings()
     if enabled and minutes > 0 then
-        for itemID, expiry in pairs(self:GetWarbandRecentStore() or {}) do
-            self.warbandRecentIDs[tonumber(itemID) or itemID] = expiry
-        end
-        self:ExpireWarbandRecent()
+        self.warbandRecentIDs = RecoverRecentMarks(self:GetWarbandRecentStore(), self.warbandRecentSnapshot, GetServerTime())
         self:SaveWarbandRecent()
         self:ScheduleWarbandRecentExpiration()
     end
 end
 
 function SB:EndWarbandRecentSession()
-     
-     
     self.warbandRecentSortToken = (self.warbandRecentSortToken or 0) + 1
     self.warbandRecentSortPending = nil
     self.warbandRecentSortDeadline = nil
@@ -413,7 +443,6 @@ function SB:EndWarbandRecentSession()
 end
 
 function SB:ClearWarbandRecent()
-     
     self.warbandRecentSortToken = (self.warbandRecentSortToken or 0) + 1
     self.warbandRecentSortPending = nil
     self.warbandRecentSortDeadline = nil
@@ -421,24 +450,17 @@ function SB:ClearWarbandRecent()
     self.warbandRecentIDs = {}
     self.warbandRecentPreviewIDs = nil
     self.warbandRecentPending = nil
-     
     self.warbandRecentSession = (self.warbandRecentSession or 0) + 1
     self.warbandRecentPolling = nil
     local store = self:GetWarbandRecentStore()
     if store then wipe(store) end
     if self.bankAccessOpen and self.bankMode == ACCOUNT_BANK_TYPE then
-        self.warbandRecentSnapshot = self:ScanWarbandRecentTotals()
+        self.warbandRecentSnapshot = self:ScanWarbandRecentSnapshot()
     else
-         
         self.warbandRecentSnapshot = nil
     end
 end
 
- 
- 
- 
- 
- 
 function SB:BeginWarbandRecentSort()
     self:ClearWarbandRecent()
     if not self.bankAccessOpen or self.bankMode ~= ACCOUNT_BANK_TYPE then return end
@@ -455,11 +477,8 @@ function SB:BeginWarbandRecentSort()
         end
         self.warbandRecentSortPending = nil
         self.warbandRecentSortDeadline = nil
-         
-         
-         
         self:ResetBankVisualSlotSession(ACCOUNT_BANK_TYPE)
-        self.warbandRecentSnapshot = self:ScanWarbandRecentTotals()
+        self.warbandRecentSnapshot = self:ScanWarbandRecentSnapshot()
         if self.bankMode == ACCOUNT_BANK_TYPE and self.bankFrame and self.bankFrame:IsShown() then
             self:RefreshBank("BankFeatures.lua:WarbandSortSettled")
         end
@@ -467,10 +486,6 @@ function SB:BeginWarbandRecentSort()
     C_Timer.After(0.2, Settle)
 end
 
- 
- 
- 
- 
 function SB:WarbandHasLockedItems()
     if not C_Container then return false end
     for _, bagID in ipairs(self:GetTrackedWarbandTabIDs() or {}) do
@@ -482,26 +497,15 @@ function SB:WarbandHasLockedItems()
     return false
 end
 
- 
- 
- 
-function SB:PreviewWarbandRecentFromTotals(totals)
+function SB:PreviewWarbandRecentFromSnapshot(snapshot)
     if self.warbandRecentSortPending or not self.warbandRecentPending
         or not self.warbandRecentSnapshot then return end
-    local preview = {}
-    for itemID, count in pairs(totals) do
-        if count > (self.warbandRecentSnapshot[itemID] or 0) then
-            preview[itemID] = true
-        end
-    end
-    self.warbandRecentPreviewIDs = preview
+    self.warbandRecentPreviewIDs = RecentCandidates(self.warbandRecentSnapshot, snapshot)
 end
 
 function SB:QueueWarbandRecentTracking()
     if not self.bankAccessOpen or not self.warbandRecentSnapshot then return end
     if self.warbandRecentSortPending then
-         
-         
         self.warbandRecentSortDeadline = GetTime() + 1.0
         return
     end
@@ -522,17 +526,12 @@ function SB:QueueWarbandRecentTracking()
         self.warbandRecentPending = nil
         self.warbandRecentPreviewIDs = nil
         local previous = self.warbandRecentSnapshot
-        local current = self:ScanWarbandRecentTotals()
-        self.warbandRecentSnapshot = current
+        local settled = self:ScanWarbandRecentSnapshot()
+        self.warbandRecentSnapshot = settled
         local _, minutes = self:BankRecentSettings()
-        local now = GetServerTime()
         self.warbandRecentIDs = self.warbandRecentIDs or {}
-        for itemID, count in pairs(current) do
-            if count > (previous[itemID] or 0) then
-                self.warbandRecentIDs[itemID] = minutes > 0 and (now + minutes * 60) or true
-            end
-        end
-        self:ExpireWarbandRecent()
+        MarkRecentCandidates(self.warbandRecentIDs, RecentCandidates(previous, settled), minutes)
+        ExpireRecentMarks(self.warbandRecentIDs, true, minutes, settled)
         if minutes > 0 then self:SaveWarbandRecent() end
         self:ScheduleWarbandRecentExpiration()
         if self.bankMode == ACCOUNT_BANK_TYPE and self.bankFrame and self.bankFrame:IsShown() then
@@ -543,20 +542,13 @@ function SB:QueueWarbandRecentTracking()
 end
 
 function SB:WarbandRecentKeys(groups)
-     
-     
     if self.warbandRecentSortPending then return {} end
-    self:ExpireWarbandRecent()
-    local keys = {}
-    local enabled = self:BankRecentSettings()
-    if not enabled then return keys end
-    for _, group in ipairs(groups) do
-        if (self.warbandRecentIDs and self.warbandRecentIDs[group.itemID])
-            or (self.warbandRecentPreviewIDs and self.warbandRecentPreviewIDs[group.itemID]) then
-            keys[group.key] = true
-        end
+    local enabled, minutes = self:BankRecentSettings()
+    if not enabled then return {} end
+    if self.warbandRecentIDs then
+        ExpireRecentMarks(self.warbandRecentIDs, enabled, minutes)
     end
-    return keys
+    return RecentGroupKeys(groups, self.warbandRecentIDs, self.warbandRecentPreviewIDs)
 end
 
 function SB:ToggleBankSplitView()
@@ -649,25 +641,23 @@ function SB:ScheduleBankRecentExpiration()
     if not enabled or minutes <= 0 or not self.bankAccessOpen then return end
     local now = GetServerTime()
     local earliest
-    for _, expiry in pairs(self.bankRecentIDs or {}) do
-        if type(expiry)=="number" and expiry > now then
+    for _, mark in pairs(self.bankRecentIDs or {}) do
+        local expiry = mark.expiresAt
+        if type(expiry) == "number" and expiry > now then
             if not earliest or expiry < earliest then earliest = expiry end
         end
     end
     if not earliest then return end
     self.bankRecentExpiryToken = (self.bankRecentExpiryToken or 0) + 1
-    local token = self.bankRecentExpiryToken
-    C_Timer.After(math.max(.1,earliest-now+.1),function()
-        if token~=self.bankRecentExpiryToken or not self.bankAccessOpen then return end
+    local token, session = self.bankRecentExpiryToken, self.bankRecentSession
+    C_Timer.After(math.max(.1, earliest - now + .1), function()
+        if token ~= self.bankRecentExpiryToken or session ~= self.bankRecentSession
+            or not self.bankAccessOpen then return end
         self:ExpireBankRecent()
-        local store=self:GetBankRecentStore()
-        if store then
-            wipe(store)
-            for itemID, expiry in pairs(self.bankRecentIDs or {}) do
-                if type(expiry)=="number" then store[itemID]=expiry end
-            end
+        SaveRecentMarks(self:GetBankRecentStore(), self.bankRecentIDs, GetServerTime())
+        if self.bankFrame and self.bankFrame:IsShown() then
+            self:RefreshBank("BankFeatures.lua:BankRecentExpiry")
         end
-        if self.bankFrame and self.bankFrame:IsShown() then self:RefreshBank("BankFeatures.lua:300") end
         self:ScheduleBankRecentExpiration()
     end)
 end

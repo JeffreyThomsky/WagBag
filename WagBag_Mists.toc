@@ -3,7 +3,7 @@
 ## Notes: Minimal virtual inventory and bank for World of Warcraft: Mists of Pandaria Classic
 ## Author: Sailor
 ## IconTexture: Interface\AddOns\WagBag\WagBagIcon
-## Version: 1.2.1
+## Version: 1.3.0
 ## SavedVariables: WagBagDB
 ## OptionalDeps: CanIMogIt
 

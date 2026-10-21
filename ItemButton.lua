@@ -560,6 +560,60 @@ function SB:NormalizeNativeItemButton(wrapper)
     end
 end
 
+function SB:GetActiveBankDepositType()
+    if not self.bankAccessOpen then return nil end
+    if not (self.bankFrame and self.bankFrame:IsShown()) then return nil end
+    if not self.isMainline then return nil end
+    local types = Enum and Enum.BankType
+    if not types then return nil end
+    if self.bankMode == types.Account then return types.Account end
+    return types.Character
+end
+
+function SB:UpdateBankDepositAppearance(wrapper, group)
+    if not wrapper or not wrapper.icon then return end
+    local blocked = false
+    if group and not group.isBankItem and self.bankAccessOpen
+        and self.bankFrame and self.bankFrame:IsShown() then
+        local slot = self:GetFirstValidSlot(group)
+        if slot and ItemLocation and ItemLocation.CreateFromBagAndSlot then
+            local okLocation, location = pcall(ItemLocation.CreateFromBagAndSlot, ItemLocation, slot.bagID, slot.slotID)
+            if okLocation and location then
+                local bankType = self:GetActiveBankDepositType()
+                if bankType ~= nil and C_Bank and C_Bank.IsItemAllowedInBankType then
+                    local okAllowed, allowed = pcall(C_Bank.IsItemAllowedInBankType, bankType, location)
+                    if okAllowed and type(allowed) == "boolean" then blocked = not allowed end
+                elseif ItemButtonUtil and ItemButtonUtil.GetItemContextMatchResultForItem
+                    and ItemButtonUtil.ItemContextMatchResult then
+                    local okResult, result = pcall(ItemButtonUtil.GetItemContextMatchResultForItem, location)
+                    if okResult and result == ItemButtonUtil.ItemContextMatchResult.Mismatch then blocked = true end
+                end
+            end
+        end
+    end
+    wrapper._wagBankDepositBlocked = blocked
+    wrapper.icon:SetDesaturated(blocked or wrapper._wagBaseDesaturated or false)
+    if blocked then
+        wrapper.icon:SetVertexColor(.42, .42, .42)
+    else
+        wrapper.icon:SetVertexColor(1, 1, 1)
+    end
+    if wrapper.qualityBorder then
+        for _, texture in pairs(wrapper.qualityBorder) do texture:SetAlpha(blocked and .35 or 1) end
+    end
+    if wrapper.countText then wrapper.countText:SetAlpha(blocked and .65 or 1) end
+    if wrapper.itemLevelText then wrapper.itemLevelText:SetAlpha(blocked and .65 or 1) end
+end
+
+function SB:RefreshBagBankDepositAppearance()
+    if not (self.mainFrame and self.mainFrame:IsShown()) then return end
+    for _, wrapper in ipairs(self.itemButtons or {}) do
+        if wrapper:IsShown() and wrapper.group then
+            self:UpdateBankDepositAppearance(wrapper, wrapper.group)
+        end
+    end
+end
+
 function SB:BindItemButton(wrapper, group)
     wrapper.group = group
 
@@ -584,6 +638,7 @@ function SB:BindItemButton(wrapper, group)
         local _,_,q=C_Item.GetItemInfo(group.itemLink)
         quality=q
     end
+    wrapper._wagBaseDesaturated = quality==0
     wrapper.icon:SetDesaturated(quality==0)
     if wrapper.junkCoin then wrapper.junkCoin:SetShown(quality==0) end
 
@@ -603,6 +658,7 @@ function SB:BindItemButton(wrapper, group)
     self:UpdateItemLevel(wrapper, group)
     self:UpdateCanIMogIt(wrapper, group)
     self:UpdateItemCooldown(wrapper, group)
+    self:UpdateBankDepositAppearance(wrapper, group)
 
     local searching = strtrim(self.searchText or "") ~= ""
     local matches = (not searching) or self:GroupMatchesSearch(group, self.searchText)
@@ -646,6 +702,7 @@ function SB:BindBagItemButton(wrapper, group)
 
     if unchanged then
         wrapper.group = group
+        self:UpdateBankDepositAppearance(wrapper, group)
          
         local search = self.searchText or ""
         if wrapper._bagSearch ~= search or self._bagSearchNeedsRefresh then
@@ -693,6 +750,8 @@ end
 
 function SB:ResetItemButton(wrapper)
     wrapper._bagFastValid = false
+    self:UpdateBankDepositAppearance(wrapper, nil)
+    wrapper._wagBaseDesaturated = false
     wrapper:SetAlpha(1)
     if wrapper.hoverHighlight then wrapper.hoverHighlight:Hide() end
     wrapper:Hide()

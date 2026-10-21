@@ -3,7 +3,7 @@ local ADDON_NAME, SB = ...
 SB = SB or {}
 _G.WagBag = SB
 
-SB.VERSION="1.2.1"
+SB.VERSION="1.3.0"
 SB.PREFIX = "|cff9b7cff[WagBag]|r"
 
 function SB:Print(message)
@@ -239,6 +239,7 @@ function SB:EndBankInteraction()
     if bankVisible then self.bankFrame:Hide() end
     self:CloseForInteraction(_G.BankFrame or "BankFrame")
     self:CloseBank()
+    if self.RefreshBagBankDepositAppearance then self:RefreshBagBankDepositAppearance() end
     if self.EndBankRecentSession then self:EndBankRecentSession() end
     if self.EndWarbandRecentSession then self:EndWarbandRecentSession() end
 end
