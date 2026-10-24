@@ -48,6 +48,23 @@ local function AcquireCategoryFrame(parent, index)
     return frame
 end
 
+local function UpdateRecentOverflowIndicators(block)
+    if not block or not block.recentScroll then return end
+    local topIndicator = block.recentTopIndicator
+    local bottomIndicator = block.recentBottomIndicator
+    if not topIndicator or not bottomIndicator then return end
+    local scroll = block.recentScroll
+    local range = block.recentExpectedScrollRange or 0
+    local offset = scroll:GetVerticalScroll() or 0
+    if range <= 1 then
+        topIndicator:Hide()
+        bottomIndicator:Hide()
+        return
+    end
+    if offset > 1 then topIndicator:Show() else topIndicator:Hide() end
+    if offset < range - 1 then bottomIndicator:Show() else bottomIndicator:Hide() end
+end
+
 function SB:GetActiveCategoryItemIDEditBox()
     local f = self.settingsFrame
     local p = f and f.categoriesPage
@@ -553,6 +570,7 @@ function SB:CreateMainFrame()
     local headerTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     headerTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", WINDOW_PADDING, -12)
     headerTitle:SetText("WagBag")
+    self.mainHeaderTitle=headerTitle
 
     local searchBox = CreateFrame("EditBox", nil, frame, "BackdropTemplate")
     searchBox:SetSize(132, 20)
@@ -867,24 +885,30 @@ function SB:RefreshBags(source)
         return BLOCK_TITLE_HEIGHT+2
     end
 
-    local function PopulateBlock(block,category,columns)
+    local function BlockWidth(category,columns,title)
         local displayItems=category.visualItems or category.items
-        local itemCount=#displayItems
-        local blockHeight=BlockHeight(category,columns)
-        local shownColumns=math.min(columns,math.max(1,itemCount))
+        local shownColumns=math.min(columns,math.max(1,#displayItems))
         local itemsWidth=BLOCK_PADDING*2+shownColumns*self.SLOT_SIZE+math.max(0,shownColumns-1)*self.SLOT_SPACING
-        local titleWidth=math.ceil(block.title:GetStringWidth() or 0)+BLOCK_PADDING*2+4
-        local blockWidth=math.max(itemsWidth,titleWidth)
+        local titleWidth=math.ceil(title:GetStringWidth() or 0)+BLOCK_PADDING*2+4
+        return math.max(itemsWidth,titleWidth)
+    end
+
+    local function PopulateBlock(block,category,columns,itemParent,itemTopOffset)
+        local displayItems=category.visualItems or category.items
+        local blockHeight=BlockHeight(category,columns)
+        local blockWidth=BlockWidth(category,columns,block.title)
+        local parent=itemParent or block
+        local topOffset=itemTopOffset or BLOCK_TITLE_HEIGHT
 
         for itemIndex,group in ipairs(displayItems) do
             if group then
                 buttonIndex=buttonIndex+1
                 local button=self.itemButtons[buttonIndex]
-                if not button then button=self:CreateItemButton(block); self.itemButtons[buttonIndex]=button else button:SetParent(block) end
+                if not button then button=self:CreateItemButton(parent); self.itemButtons[buttonIndex]=button else button:SetParent(parent) end
                 local column=(itemIndex-1)%columns
                 local row=math.floor((itemIndex-1)/columns)
                 button:ClearAllPoints()
-                button:SetPoint("TOPLEFT",block,"TOPLEFT",BLOCK_PADDING+column*(self.SLOT_SIZE+self.SLOT_SPACING),-(BLOCK_TITLE_HEIGHT+BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
+                button:SetPoint("TOPLEFT",parent,"TOPLEFT",BLOCK_PADDING+column*(self.SLOT_SIZE+self.SLOT_SPACING),-(topOffset+BLOCK_PADDING+row*(self.SLOT_SIZE+self.SLOT_SPACING)))
                 self:BindBagItemButton(button,group)
                 button:Show()
             end
@@ -900,30 +924,84 @@ function SB:RefreshBags(source)
         end
     end
 
-    local initialRecentHeight=recentCategory and BlockHeight(recentCategory,cellsPerRow*configuredBlocksPerRow) or 0
-    local initialNormalStart=HEADER_HEIGHT+(initialRecentHeight>0 and (initialRecentHeight+BLOCK_GAP) or 0)
-    local plannedPlacementY={}
-    local plannedColumns={}
-    local plannedNormalIndex=0
-    local actualBlocksPerRow=configuredBlocksPerRow
-    for _,category in ipairs(categories) do
-        if category.key~="__recent" then
-            plannedNormalIndex=plannedNormalIndex+1
-            local col=(plannedNormalIndex-1)%configuredBlocksPerRow
-            local height=BlockHeight(category,cellsPerRow)
-            for c=0,maxVisualColumns-1 do
-                if plannedPlacementY[c]==nil then plannedPlacementY[c]=initialNormalStart end
-            end
-            if plannedPlacementY[col]+height>columnHeightLimit and col+1<maxVisualColumns then
-                col=col+1
-                while col+1<maxVisualColumns and plannedPlacementY[col]+height>columnHeightLimit do
-                    col=col+1
+    self:RefreshCurrencyBar()
+    local infoCounterWidth=math.max(145,self.bagCounter:GetWidth() or 145)
+    local infoMoneyWidth=math.max(190,math.ceil(self.moneyText:GetStringWidth() or 0))
+    local minimumInfoWidth=WINDOW_PADDING*2+infoCounterWidth+12+infoMoneyWidth
+    local currencyWidth=self.currencyBar and self.currencyBar:IsShown() and (self.currencyBar:GetWidth()+WINDOW_PADDING*2) or 0
+
+    local measureTitle=self._bagLayoutMeasureTitle
+    if not measureTitle then
+        measureTitle=self.mainFrame:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        measureTitle:Hide()
+        self._bagLayoutMeasureTitle=measureTitle
+    end
+
+    local function PlanNormalLayout(recentReserveHeight)
+        local start=HEADER_HEIGHT+(recentReserveHeight>0 and (recentReserveHeight+BLOCK_GAP) or 0)
+        local placementY={}
+        local columns={}
+        local widths={}
+        local index=0
+        local highest=-1
+        local maxBottom=start
+        for _,category in ipairs(categories) do
+            if category.key~="__recent" then
+                index=index+1
+                local col=(index-1)%configuredBlocksPerRow
+                local height=BlockHeight(category,cellsPerRow)
+                for c=0,maxVisualColumns-1 do
+                    if placementY[c]==nil then placementY[c]=start end
                 end
+                if placementY[col]+height>columnHeightLimit and col+1<maxVisualColumns then
+                    col=col+1
+                    while col+1<maxVisualColumns and placementY[col]+height>columnHeightLimit do
+                        col=col+1
+                    end
+                end
+                columns[index]=col
+                highest=math.max(highest,col)
+                measureTitle:SetText(category.name)
+                widths[col]=math.max(widths[col] or 0,BlockWidth(category,cellsPerRow,measureTitle))
+                maxBottom=math.max(maxBottom,placementY[col]+height)
+                placementY[col]=placementY[col]+height+BLOCK_GAP
             end
-            plannedColumns[plannedNormalIndex]=col
-            actualBlocksPerRow=math.max(actualBlocksPerRow,col+1)
-            plannedPlacementY[col]=plannedPlacementY[col]+height+BLOCK_GAP
         end
+        local width=0
+        for col=0,highest do width=width+(widths[col] or 0)+BLOCK_GAP end
+        if highest>=0 then width=width-BLOCK_GAP end
+        return columns,width,maxBottom-start
+    end
+
+    local minimumBlockWidth=BLOCK_PADDING*2+cellsPerRow*self.SLOT_SIZE+(cellsPerRow-1)*self.SLOT_SPACING
+
+    local function RecentColumnsForWidth(width)
+        local capacity=math.floor((width-BLOCK_PADDING*2+self.SLOT_SPACING)/(self.SLOT_SIZE+self.SLOT_SPACING))
+        return math.max(cellsPerRow,capacity)
+    end
+
+    local function VisibleRecentHeight(category,columns,normalHeight)
+        local count=#(category.visualItems or category.items)
+        local rows=math.max(1,math.ceil(count/columns))
+        local screenHeight=(UIParent:GetHeight() or 768)/scale
+        local currencyFooter=self.currencyBar and self.currencyBar:IsShown() and 23 or 0
+        local available=screenHeight*0.90-HEADER_HEIGHT-normalHeight-(normalHeight>0 and BLOCK_GAP or 0)-2*WINDOW_PADDING-27-currencyFooter-BLOCK_TITLE_HEIGHT
+        local viewportLimit=math.min(screenHeight*0.50,available)
+        local maxRows=math.max(1,math.floor((viewportLimit-BLOCK_PADDING*2+self.SLOT_SPACING)/(self.SLOT_SIZE+self.SLOT_SPACING)))
+        local visibleRows=math.min(rows,maxRows)
+        local viewportHeight=BLOCK_PADDING*2+visibleRows*self.SLOT_SIZE+math.max(0,visibleRows-1)*self.SLOT_SPACING
+        return BLOCK_TITLE_HEIGHT+viewportHeight
+    end
+
+    local plannedColumns,naturalNormalWidth,naturalNormalHeight=PlanNormalLayout(0)
+    local headerTextWidth=math.ceil(self.mainHeaderTitle and self.mainHeaderTitle:GetStringWidth() or 48)
+    local minimumHeaderWidth=WINDOW_PADDING+headerTextWidth+64+125
+    local minimumWindowWidth=math.max(minimumBlockWidth+WINDOW_PADDING*2,minimumInfoWidth,minimumHeaderWidth,currencyWidth)
+    local recentColumns=0
+    local recentTargetWidth=math.max(minimumBlockWidth,naturalNormalWidth,minimumWindowWidth-WINDOW_PADDING*2)
+    if recentCategory then
+        recentColumns=RecentColumnsForWidth(recentTargetWidth)
+        recentHeight=VisibleRecentHeight(recentCategory,recentColumns,naturalNormalHeight)
     end
 
     if recentCategory then
@@ -932,8 +1010,72 @@ function SB:RefreshBags(source)
         block.title:SetText(recentCategory.name)
         block.categoryKey=recentCategory.key
         block.titleHandle.categoryKey=nil
-        recentHeight,recentWidth=PopulateBlock(block,recentCategory,cellsPerRow*actualBlocksPerRow)
+        if not block.recentScroll then
+            local viewport=CreateFrame("ScrollFrame",nil,block)
+            local content=CreateFrame("Frame",nil,viewport)
+            content:SetSize(1,1)
+            viewport:SetScrollChild(content)
+            viewport:EnableMouseWheel(true)
+            viewport:SetScript("OnMouseWheel",function(scroll,direction)
+                local range=block.recentExpectedScrollRange or 0
+                if range<=1 then
+                    scroll:SetVerticalScroll(0)
+                else
+                    local offset=scroll:GetVerticalScroll()-direction*(self.SLOT_SIZE+self.SLOT_SPACING)*3
+                    scroll:SetVerticalScroll(math.max(0,math.min(range,offset)))
+                end
+                UpdateRecentOverflowIndicators(block)
+            end)
+            viewport:SetScript("OnVerticalScroll",function()
+                UpdateRecentOverflowIndicators(block)
+            end)
+            viewport:SetScript("OnScrollRangeChanged",function()
+                UpdateRecentOverflowIndicators(block)
+            end)
+            block.recentScroll=viewport
+            block.recentContent=content
+            local function CreateHint(texture,anchor,offset)
+                local indicator=CreateFrame("Frame",nil,block,"BackdropTemplate")
+                indicator:SetSize(20,20)
+                indicator:SetFrameLevel(viewport:GetFrameLevel()+20)
+                indicator:EnableMouse(false)
+                indicator:SetPoint(anchor,viewport,anchor,0,offset)
+                indicator:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+                indicator:SetBackdropColor(0,0,0,0.30)
+                indicator:SetBackdropBorderColor(1.00,0.90,0.35,0.45)
+                local glow=indicator:CreateTexture(nil,"BACKGROUND")
+                glow:SetAllPoints()
+                glow:SetTexture("Interface\\Buttons\\WHITE8X8")
+                glow:SetVertexColor(1.00,0.90,0.35,0.10)
+                local icon=indicator:CreateTexture(nil,"OVERLAY")
+                icon:SetPoint("TOPLEFT",1,-1)
+                icon:SetPoint("BOTTOMRIGHT",-1,1)
+                icon:SetTexture(texture)
+                icon:SetTexCoord(0.25,0.75,0.25,0.75)
+                icon:SetAlpha(1)
+                indicator:Hide()
+                return indicator
+            end
+            block.recentTopIndicator=CreateHint("Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up","TOP",-2)
+            block.recentBottomIndicator=CreateHint("Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Up","BOTTOM",2)
+        end
+        local fullHeight
+        fullHeight,recentWidth=PopulateBlock(block,recentCategory,recentColumns,block.recentContent,0)
+        recentWidth=math.max(recentWidth,recentTargetWidth)
+        block.recentContent:SetSize(recentWidth,math.max(1,fullHeight-BLOCK_TITLE_HEIGHT))
+        block.recentExpectedScrollRange=math.max(0,fullHeight-recentHeight)
+        block.recentScroll:ClearAllPoints()
+        block.recentScroll:SetPoint("TOPLEFT",block,"TOPLEFT",0,-BLOCK_TITLE_HEIGHT)
+        block.recentScroll:SetSize(recentWidth,recentHeight-BLOCK_TITLE_HEIGHT)
+        local recentRange=block.recentExpectedScrollRange
+        if recentRange<=1 then
+            block.recentScroll:SetVerticalScroll(0)
+        else
+            block.recentScroll:SetVerticalScroll(math.max(0,math.min(block.recentScroll:GetVerticalScroll(),recentRange)))
+        end
+        block.recentScroll:Show()
         block:SetSize(recentWidth,recentHeight)
+        UpdateRecentOverflowIndicators(block)
         block:ClearAllPoints()
         block:SetPoint("TOPLEFT",self.mainFrame,"TOPLEFT",WINDOW_PADDING,-HEADER_HEIGHT)
     end
@@ -944,6 +1086,10 @@ function SB:RefreshBags(source)
             normalIndex=normalIndex+1
             local block=AcquireCategoryFrame(self.mainFrame,categoryFrameIndex)
             block.title:SetText(category.name)
+            if block.recentScroll then block.recentScroll:Hide() end
+            block.recentExpectedScrollRange=0
+            if block.recentTopIndicator then block.recentTopIndicator:Hide() end
+            if block.recentBottomIndicator then block.recentBottomIndicator:Hide() end
             block.categoryKey=category.key
             block.titleHandle.categoryKey=category.noReorder and nil or category.key
             local h,w=PopulateBlock(block,category,cellsPerRow)
@@ -984,13 +1130,17 @@ function SB:RefreshBags(source)
     end
 
     local normalCount=#normalLayouts
-    self:RefreshCurrencyBar()
-    local infoCounterWidth=math.max(145,self.bagCounter:GetWidth() or 145)
-    local infoMoneyWidth=math.max(190,math.ceil(self.moneyText:GetStringWidth() or 0))
-    local minimumInfoWidth=WINDOW_PADDING*2+infoCounterWidth+12+infoMoneyWidth
-    local currencyWidth=self.currencyBar and self.currencyBar:IsShown() and (self.currencyBar:GetWidth()+WINDOW_PADDING*2) or 0
     local contentWidth=WINDOW_PADDING*2+math.max(normalWidth,recentWidth)
-    local windowWidth=math.max(contentWidth,minimumInfoWidth,currencyWidth)
+    local windowWidth=math.max(contentWidth,minimumWindowWidth)
+    if self.mainSearchBox then self.mainSearchBox:SetWidth(132) end
+    self.bagCounter:ClearAllPoints()
+    self.bagCounter:SetPoint("BOTTOMLEFT",self.mainFrame,"BOTTOMLEFT",WINDOW_PADDING,7)
+    self.moneyText:ClearAllPoints()
+    self.moneyText:SetPoint("BOTTOMRIGHT",self.mainFrame,"BOTTOMRIGHT",-WINDOW_PADDING,12)
+    if self.currencyBar then
+        self.currencyBar:ClearAllPoints()
+        self.currencyBar:SetPoint("BOTTOMLEFT",self.mainFrame,"BOTTOMLEFT",WINDOW_PADDING,30)
+    end
     local staticInfoFooter=27
     local currencyFooter=self.currencyBar and self.currencyBar:IsShown() and 23 or 0
     local contentBottom

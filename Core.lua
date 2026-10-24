@@ -3,7 +3,7 @@ local ADDON_NAME, SB = ...
 SB = SB or {}
 _G.WagBag = SB
 
-SB.VERSION="1.3.0"
+SB.VERSION="1.3.1"
 SB.PREFIX = "|cff9b7cff[WagBag]|r"
 
 function SB:Print(message)
@@ -422,14 +422,47 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     end
 
     if event == "GET_ITEM_INFO_RECEIVED" then
-        if SB.InvalidateStaticItemInfo then SB:InvalidateStaticItemInfo((...)) end
-        SB.bagScanCache=nil
-        if SB.InvalidateBagButtonCache then SB:InvalidateBagButtonCache() end
-        SB._bagSearchNeedsRefresh = true
-        if SB.mainFrame and SB.mainFrame:IsShown() then SB:RefreshBags("Core.lua:364") end
-        if SB.settingsFrame and SB.settingsFrame:IsShown() and SB.settingsFrame.categoriesPage and SB.RefreshCategorySettings then
-            SB:RefreshCategorySettings()
+        local itemID, succeeded = ...
+        if not itemID or succeeded == false then return end
+        if SB.InvalidateStaticItemInfo then SB:InvalidateStaticItemInfo(itemID) end
+
+        local bagVisible = SB.mainFrame and SB.mainFrame:IsShown()
+        local cache = SB.bagScanCache
+        if bagVisible and not cache then cache = SB:ScanAndCacheBags() end
+        local inBags = bagVisible and cache and cache.itemIDs and cache.itemIDs[itemID]
+        local assignments = SB.db and SB.db.categories and SB.db.categories.assignments
+        local settingsRelevant = SB.settingsFrame and SB.settingsFrame:IsShown()
+            and SB.settingsFrame.categoriesPage and SB.RefreshCategorySettings
+            and assignments and (assignments[itemID] or assignments[tostring(itemID)])
+
+        if not inBags and not settingsRelevant then return end
+
+        if inBags then
+            SB._bagItemInfoPending = SB._bagItemInfoPending or {}
+            SB._bagItemInfoPending[itemID] = true
         end
+        if settingsRelevant then SB._categoryItemInfoPending = true end
+        if SB.itemInfoRefreshQueued then return end
+        SB.itemInfoRefreshQueued = true
+        C_Timer.After(0.1, function()
+            SB.itemInfoRefreshQueued = false
+            local pending = SB._bagItemInfoPending
+            SB._bagItemInfoPending = nil
+            if pending and SB.mainFrame and SB.mainFrame:IsShown() then
+                for _, wrapper in ipairs(SB.itemButtons or {}) do
+                    if pending[wrapper._bagItemID] then wrapper._bagFastValid = false end
+                end
+                SB.bagScanCache = nil
+                SB._bagSearchNeedsRefresh = true
+                SB:RefreshBags("Core.lua:iteminfo")
+            end
+            if SB._categoryItemInfoPending then
+                SB._categoryItemInfoPending = nil
+                if SB.settingsFrame and SB.settingsFrame:IsShown() and SB.RefreshCategorySettings then
+                    SB:RefreshCategorySettings()
+                end
+            end
+        end)
         return
     end
 

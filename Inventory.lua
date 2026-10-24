@@ -217,8 +217,12 @@ function SB:BuildInventorySnapshot(groups)
 end
 
 function SB:StoreBagScanCache(groups,totalSlots,usedSlots,totalItems,normalTotal,normalUsed,reagentTotal,reagentUsed)
+    local itemIDs = {}
+    for _, group in pairs(groups) do
+        if group.itemID then itemIDs[group.itemID] = true end
+    end
     self.bagScanCache = {
-        groups=groups, totalSlots=totalSlots, usedSlots=usedSlots, totalItems=totalItems,
+        groups=groups, itemIDs=itemIDs, totalSlots=totalSlots, usedSlots=usedSlots, totalItems=totalItems,
         normalTotal=normalTotal, normalUsed=normalUsed, reagentTotal=reagentTotal, reagentUsed=reagentUsed,
     }
     return self.bagScanCache
